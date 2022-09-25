@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/comoyi/valheim-launcher/theme"
 	"github.com/comoyi/valheim-launcher/utils/dialogutil"
 	"time"
 )
@@ -24,7 +25,7 @@ func initMainWindow() {
 	windowTitle := fmt.Sprintf("%s-v%s", appName, versionText)
 
 	myApp = app.New()
-	//myApp.Settings().SetTheme(theme.CustomTheme)
+	myApp.Settings().SetTheme(theme.CustomTheme)
 	w = myApp.NewWindow(windowTitle)
 	w.SetMaster()
 	w.Resize(fyne.NewSize(800, 400))
