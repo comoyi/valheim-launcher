@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var (
+const (
 	Trace int = 100
 	Debug int = 200
 	Info  int = 300

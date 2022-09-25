@@ -63,6 +63,11 @@ func initMainWindow() {
 	isUpdating := false
 	updateBtnText := "更新"
 	updateBtn = widget.NewButton(updateBtnText, func() {
+		baseDir := pathInput.Text
+		if baseDir == "" {
+			dialogutil.ShowInformation("提示", "请选择文件夹", w)
+			return
+		}
 		if isUpdating {
 			isUpdating = false
 			updateBtn.SetText("更新")
@@ -85,10 +90,10 @@ func initMainWindow() {
 				case <-ctx.Done():
 					return
 				default:
-					update(ctx)
+					update(ctx, baseDir)
 
 					// delay for progress bar
-					<-time.After(500 * time.Millisecond)
+					<-time.After(200 * time.Millisecond)
 
 					isUpdating = false
 					updateBtn.SetText("更新")
