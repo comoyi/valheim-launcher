@@ -5,10 +5,12 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/utils/fileutil"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,18 +39,7 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 		return
 	}
 
-	//serverFileInfo := &ServerFileInfo{Files: make([]*FileInfo, 0)}
-	//
-	//// test
-	//for i := 0; i < 10; i++ {
-	//	serverFileInfo.Files = append(serverFileInfo.Files, &FileInfo{
-	//		Path:       "/a/b/file-name-" + strconv.Itoa(i+1),
-	//		Hash:       "hash-" + strconv.Itoa(i+1),
-	//		SyncStatus: SyncStatusWait,
-	//	})
-	//}
-
-	resp, err := http.Get("http://localhost:10123/files")
+	resp, err := http.Get(getFullUrl("/files"))
 	if err != nil {
 		return
 	}
@@ -157,7 +148,10 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 		defer file.Close()
 
-		resp, err := http.Get("http://localhost:10123/sync?file=" + fileInfo.Path)
+		q := url.Values{}
+		q.Set("file", fileInfo.Path)
+		fmt.Println(q.Encode())
+		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
 		if err != nil {
 			return err
 		}
@@ -170,4 +164,15 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 	log.Debugf("[OK]synced file info %+v\n", fileInfo)
 
 	return nil
+}
+
+func getFullUrl(path string) string {
+	protocol := config.Conf.Protocol
+	if protocol == "" {
+		protocol = "http"
+	}
+	host := config.Conf.Host
+	port := config.Conf.Port
+	u := fmt.Sprintf("%s://%s:%d%s", protocol, host, port, path)
+	return u
 }

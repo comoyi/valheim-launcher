@@ -13,6 +13,9 @@ var Conf Config
 type Config struct {
 	DebugLevel string `toml:"debuglevel"`
 	LogLevel   int
+	Protocol   string `toml:"protocol"`
+	Host       string `toml:"host"`
+	Port       int    `toml:"port"`
 }
 
 func LoadConfig() {
@@ -20,6 +23,7 @@ func LoadConfig() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(".")
+	viper.AddConfigPath("config")
 	viper.AddConfigPath(fmt.Sprintf("%s%s%s", "$HOME", string(os.PathSeparator), ".valheim-launcher"))
 	err = viper.ReadInConfig()
 	if err != nil {
