@@ -85,6 +85,8 @@ func initMainWindow() {
 		progressBar.SetValue(0)
 		progressBar.Show()
 
+		progressChan := make(chan struct{}, 10)
+
 		var ctx context.Context
 		ctx, cancel = context.WithCancel(ctxParent)
 
@@ -94,10 +96,10 @@ func initMainWindow() {
 				case <-ctx.Done():
 					return
 				default:
-					update(ctx, baseDir)
+					update(ctx, baseDir, progressChan)
 
 					// delay for progress bar
-					<-time.After(200 * time.Millisecond)
+					<-time.After(50 * time.Millisecond)
 
 					isUpdating = false
 					updateBtn.SetText("更新")
@@ -106,16 +108,26 @@ func initMainWindow() {
 				}
 			}
 		}(ctx)
+
 		go func(ctx context.Context) {
 			for {
 				select {
-				case <-time.After(100 * time.Millisecond):
-					//progressBar.SetValue(UpdateInf.GetRatio())
-					progressBar.Value = float64(UpdateInf.Current)
-					progressBar.Max = float64(UpdateInf.Total)
-					progressBar.Refresh()
 				case <-ctx.Done():
 					return
+				case <-progressChan:
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						if progressBar.Value == float64(UpdateInf.Current) && progressBar.Max == float64(UpdateInf.Total) {
+							break
+						} else {
+							//progressBar.SetValue(UpdateInf.GetRatio())
+							progressBar.Value = float64(UpdateInf.Current)
+							progressBar.Max = float64(UpdateInf.Total)
+							progressBar.Refresh()
+						}
+					}
 				}
 			}
 		}(ctx)

@@ -22,7 +22,7 @@ func init() {
 	UpdateInf = &UpdateInfo{}
 }
 
-func update(ctx context.Context, baseDir string) {
+func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 	log.Infof("baseDir: %v\n", baseDir)
 
 	if baseDir == "" {
@@ -62,6 +62,9 @@ func update(ctx context.Context, baseDir string) {
 			case f := <-syncChan:
 				syncFile(f)
 				UpdateInf.Current += 1
+				go func() {
+					progressChan <- struct{}{}
+				}()
 			default:
 				return
 			}
