@@ -8,8 +8,10 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/theme"
 	"github.com/comoyi/valheim-launcher/utils/dialogutil"
+	"github.com/comoyi/valheim-launcher/utils/fileutil"
 	"time"
 )
 
@@ -50,7 +52,22 @@ func initMainWindow() {
 
 	autoBtnText := "自动查找文件夹"
 	autoBtn := widget.NewButton(autoBtnText, func() {
-		dialogutil.ShowInformation("提示", "开发中，敬请期待", w)
+		dirs := GetDirs()
+		for _, dir := range dirs {
+			log.Debugf("check dir, %v\n", dir)
+			exists, err := fileutil.Exists(dir)
+			if err != nil {
+				log.Debugf("skip this dir, dir: %v, err: %v\n", dir, err)
+				continue
+			}
+			if exists {
+				log.Debugf("dir exist, %v\n", dir)
+				pathInput.SetText(dir)
+				break
+			} else {
+				log.Debugf("dir not exist, %v\n", dir)
+			}
+		}
 	})
 
 	progressBar := widget.NewProgressBar()
