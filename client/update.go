@@ -10,10 +10,12 @@ import (
 	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/utils/fileutil"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type UpdateInfo struct {
@@ -51,7 +53,7 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 		log.Debugf("read file failed, err: %v\n", err)
 		return
 	}
-	var serverFileInfo ServerFileInfo
+	var serverFileInfo *ServerFileInfo
 	err = json.Unmarshal(j, &serverFileInfo)
 	if err != nil {
 		log.Debugf("json.Unmarshal failed, err: %v\n", err)
@@ -70,6 +72,7 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 		syncChan <- file
 	}
 
+syncFile:
 	for {
 		select {
 		case <-ctx.Done():
@@ -87,10 +90,12 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 					progressChan <- struct{}{}
 				}()
 			default:
-				return
+				break syncFile
 			}
 		}
 	}
+
+	deleteFiles(serverFileInfo, baseDir)
 }
 
 func syncFile(fileInfo *FileInfo, baseDir string) error {
@@ -168,6 +173,112 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 	log.Debugf("[OK]synced file info %+v\n", fileInfo)
 
 	return nil
+}
+
+type ClientFileInfo struct {
+	Files []*FileInfo `json:"files"`
+}
+
+func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) {
+	clientFileInfo, err := getClientFileInfo(baseDir)
+	if err != nil {
+		log.Warnf("getClientFileInfo failed, err: %v\n", err)
+		return
+	}
+	files := clientFileInfo.Files
+	for _, file := range files {
+		if !in(file.Path, serverFileInfo.Files) {
+
+			if !isInAllowDeleteDirs(file.Path) {
+				continue
+			}
+
+			log.Debugf("will delete, file: %s\n", file.Path)
+			path := fmt.Sprintf("%s%s", baseDir, file.Path)
+			err := os.RemoveAll(path)
+			if err != nil {
+				log.Warnf("delete file failed, err: %v, file: %s\n", err, file.Path)
+				return
+			}
+		}
+	}
+}
+
+func in(file string, files []*FileInfo) bool {
+	for _, f := range files {
+		if file == f.Path {
+			return true
+		}
+	}
+	return false
+}
+
+func isInAllowDeleteDirs(file string) bool {
+	allowDeleteDirs := make([]string, 0)
+	allowDeleteDirs = append(allowDeleteDirs, "BepInEx")
+	allowDeleteDirs = append(allowDeleteDirs, "doorstop_libs")
+	allowDeleteDirs = append(allowDeleteDirs, "unstripped_corlib")
+	for _, f := range allowDeleteDirs {
+		if strings.HasPrefix(file, "/"+f) || strings.HasPrefix(file, "\\"+f) {
+			return true
+		}
+	}
+	return false
+}
+
+func getClientFileInfo(baseDir string) (*ClientFileInfo, error) {
+	var clientFileInfo = &ClientFileInfo{}
+
+	files := make([]*FileInfo, 0)
+
+	err := filepath.Walk(baseDir, walkFun(&files, baseDir))
+	if err != nil {
+		log.Debugf("refresh files info failed\n")
+		return nil, err
+	}
+
+	clientFileInfo.Files = files
+	return clientFileInfo, nil
+}
+
+func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
+	return func(path string, info fs.FileInfo, err error) error {
+		if !strings.HasPrefix(path, baseDir) {
+			log.Warnf("path not excepted, path: %s\n", path)
+			return nil
+		}
+		pathRelative := strings.TrimPrefix(path, baseDir)
+		if pathRelative == "" {
+			return nil
+		}
+		var file *FileInfo
+		if info.IsDir() {
+			file = &FileInfo{
+				Path: pathRelative,
+				Type: TypeDir,
+				Hash: "",
+			}
+		} else {
+			f, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			bytes, err := io.ReadAll(f)
+			if err != nil {
+				return err
+			}
+			hashSumRaw := md5.Sum(bytes)
+			hashSum := fmt.Sprintf("%x", hashSumRaw)
+			log.Tracef("file: %s, hashSum: %s\n", path, hashSum)
+			file = &FileInfo{
+				Path: pathRelative,
+				Type: TypeFile,
+				Hash: hashSum,
+			}
+		}
+		*files = append(*files, file)
+		return nil
+	}
 }
 
 func getFullUrl(path string) string {
