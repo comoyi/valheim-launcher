@@ -159,6 +159,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
 		_, err = io.Copy(file, resp.Body)
 		if err != nil {
 			return err
