@@ -36,7 +36,7 @@ func initMainWindow() {
 	c = container.NewVBox()
 	w.SetContent(c)
 
-	pathLabel := widget.NewLabel("文件夹")
+	pathLabel := widget.NewLabel("Valheim文件夹")
 	pathInput := widget.NewEntry()
 	pathInput.Disable()
 

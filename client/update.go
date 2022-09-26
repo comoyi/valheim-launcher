@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 type UpdateInfo struct {
@@ -97,7 +96,6 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 func syncFile(fileInfo *FileInfo, baseDir string) error {
 	var err error
 	log.Debugf("syncing file info %+v\n", fileInfo)
-	<-time.After(100 * time.Millisecond)
 
 	localPathRaw := fmt.Sprintf("%s%s", baseDir, fileInfo.Path)
 	localPath := filepath.Clean(localPathRaw)
