@@ -21,6 +21,8 @@ var myApp fyne.App
 
 func initUI() {
 	initMainWindow()
+
+	initMenu()
 }
 
 func initMainWindow() {
@@ -165,4 +167,28 @@ func initMainWindow() {
 	c5 := container.NewAdaptiveGrid(1)
 	c5.Add(updateBtn)
 	c.Add(c5)
+}
+
+func initMenu() {
+	firstMenu := fyne.NewMenu("操作")
+	helpMenuItem := fyne.NewMenuItem("关于", func() {
+		content := container.NewVBox()
+		appInfo := widget.NewLabel(appName)
+		content.Add(appInfo)
+		versionInfo := widget.NewLabel(fmt.Sprintf("Version %v", versionText))
+		content.Add(versionInfo)
+
+		h := container.NewHBox()
+
+		authorInfo := widget.NewLabel("Copyright © 2022 清新池塘")
+		h.Add(authorInfo)
+		linkInfo := widget.NewHyperlink(" ", nil)
+		_ = linkInfo.SetURLFromString("https://github.com/comoyi/valheim-launcher")
+		h.Add(linkInfo)
+		content.Add(h)
+		dialog.NewCustom("关于", "关闭", content, w).Show()
+	})
+	helpMenu := fyne.NewMenu("帮助", helpMenuItem)
+	mainMenu := fyne.NewMainMenu(firstMenu, helpMenu)
+	w.SetMainMenu(mainMenu)
 }

@@ -7,7 +7,7 @@ import (
 	"runtime"
 )
 
-var appName = "Launcher"
+var appName = "Valheim Launcher"
 var versionText = "0.0.1"
 
 func Start() {
