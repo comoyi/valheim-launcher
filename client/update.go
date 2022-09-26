@@ -41,15 +41,18 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 
 	resp, err := http.Get(getFullUrl("/files"))
 	if err != nil {
+		log.Debugf("request failed, err: %v\n", err)
 		return
 	}
 	j, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Debugf("read file failed, err: %v\n", err)
 		return
 	}
 	var serverFileInfo ServerFileInfo
 	err = json.Unmarshal(j, &serverFileInfo)
 	if err != nil {
+		log.Debugf("json.Unmarshal failed, err: %v\n", err)
 		return
 	}
 
