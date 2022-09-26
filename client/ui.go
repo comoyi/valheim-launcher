@@ -43,6 +43,14 @@ func initMainWindow() {
 	selectBtnText := "手动选择文件夹"
 	selectBtn := widget.NewButton(selectBtnText, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			if err != nil {
+				log.Debugf("select folder failed, err: %v\n", err)
+				return
+			}
+			if uri == nil {
+				log.Debugf("select folder cancelled\n")
+				return
+			}
 			path := uri.Path()
 			dialog.NewCustomConfirm("提示", "确定", "取消", widget.NewLabel("选择这个文件夹吗？\n"+path), func(b bool) {
 				if b {

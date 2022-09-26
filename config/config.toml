@@ -1,5 +1,5 @@
 # 日志等级 TRACE DEBUG INFO WARN ERROR OFF
-debuglevel = "WARN"
+debuglevel = "TRACE"
 
 # 协议
 protocol = "http"
