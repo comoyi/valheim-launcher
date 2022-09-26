@@ -154,7 +154,6 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 
 		q := url.Values{}
 		q.Set("file", fileInfo.Path)
-		fmt.Println(q.Encode())
 		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
 		if err != nil {
 			return err
