@@ -55,6 +55,10 @@ func initMainWindow() {
 
 	progressBar := widget.NewProgressBar()
 	progressBar.Hide()
+	progressBarFormatter := func() string {
+		return fmt.Sprintf("%v / %v", progressBar.Value, progressBar.Max)
+	}
+	progressBar.TextFormatter = progressBarFormatter
 
 	var updateBtn *widget.Button
 
@@ -106,7 +110,10 @@ func initMainWindow() {
 			for {
 				select {
 				case <-time.After(100 * time.Millisecond):
-					progressBar.SetValue(UpdateInf.GetRatio())
+					//progressBar.SetValue(UpdateInf.GetRatio())
+					progressBar.Value = float64(UpdateInf.Current)
+					progressBar.Max = float64(UpdateInf.Total)
+					progressBar.Refresh()
 				case <-ctx.Done():
 					return
 				}
