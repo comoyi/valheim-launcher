@@ -28,7 +28,7 @@ func initUI() {
 func initMainWindow() {
 	windowTitle := fmt.Sprintf("%s-v%s", appName, versionText)
 
-	myApp = app.New()
+	myApp = app.NewWithID("com.comoyi.valheim-launcher")
 	myApp.Settings().SetTheme(theme.CustomTheme)
 	w = myApp.NewWindow(windowTitle)
 	w.SetMaster()

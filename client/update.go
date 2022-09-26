@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"fyne.io/fyne/v2"
 	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/utils/fileutil"
@@ -42,6 +43,8 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 	resp, err := http.Get(getFullUrl("/files"))
 	if err != nil {
 		log.Debugf("request failed, err: %v\n", err)
+		n := fyne.NewNotification("提示", "从服务器获取文件列表失败")
+		fyne.CurrentApp().SendNotification(n)
 		return
 	}
 	j, err := io.ReadAll(resp.Body)
