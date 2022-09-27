@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
-	"github.com/comoyi/valheim-launcher/utils/fileutil"
+	"github.com/comoyi/valheim-launcher/utils/fsutil"
 	"io"
 	"io/fs"
 	"net/http"
@@ -106,7 +106,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 	localPath := filepath.Clean(localPathRaw)
 	log.Debugf("serverPath: %s, localPathRaw: %s, localPath: %s\n", fileInfo.Path, localPathRaw, localPath)
 
-	isExist, err := fileutil.Exists(localPath)
+	isExist, err := fsutil.Exists(localPath)
 	if err != nil {
 		return err
 	}

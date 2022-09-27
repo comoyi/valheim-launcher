@@ -11,7 +11,7 @@ import (
 	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/theme"
 	"github.com/comoyi/valheim-launcher/utils/dialogutil"
-	"github.com/comoyi/valheim-launcher/utils/fileutil"
+	"github.com/comoyi/valheim-launcher/utils/fsutil"
 	"time"
 )
 
@@ -65,7 +65,7 @@ func initMainWindow() {
 		dirs := GetDirs()
 		for _, dir := range dirs {
 			log.Debugf("check dir, %v\n", dir)
-			exists, err := fileutil.Exists(dir)
+			exists, err := fsutil.Exists(dir)
 			if err != nil {
 				log.Debugf("skip this dir, dir: %v, err: %v\n", dir, err)
 				continue
