@@ -16,6 +16,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
 
+      - name: Add GOPATH to $PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
       - name: Install Prerequisites
         run: sudo apt-get install gcc-mingw-w64-x86-64
 
