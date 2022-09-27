@@ -1,5 +1,8 @@
 name: Build
 
+env:
+  X_APP_NAME: valheim-launcher
+
 on:
   push:
     branches:
@@ -28,9 +31,21 @@ jobs:
       - name: Prerequisites for fyne
         run: sudo apt-get install gcc libgl1-mesa-dev xorg-dev
 
-      - name: Install Fonts
+      - name: Cache Font
+        id: cache-font
+        uses: actions/cache@v3
+        with:
+          path: HarmonyOS_Sans.zip
+          key: cache-font-HarmonyOS_Sans-806e68b8cad06848d60da7211519c7b70a81588cdc19cec0d7238057a0726d3e
+
+      - name: Download Font
+        if: steps.cache-font.outputs.cache-hit != 'true'
         run: |
           wget -O HarmonyOS_Sans.zip https://communityfile-drcn.op.hicloud.com/FileServer/getFile/cmtyPub/011/111/111/0000000000011111111.20220527115222.36009086555928047609106823953760:50530526070936:2800:E1CA794341643D6B6FFE8F1EE2DBB96B786975D088FDA18348E89FEC28135686.zip?needInitFileName=true
+
+      - name: Install Font
+        run: |
+          sha256sum HarmonyOS_Sans.zip
           unzip HarmonyOS_Sans.zip
           mkdir -p /usr/local/share/fonts
           sudo cp HarmonyOS\ Sans/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Regular.ttf /usr/local/share/fonts
@@ -53,8 +68,8 @@ jobs:
       - name: Upload Linux package
         uses: actions/upload-artifact@v3
         with:
-          name: valheim-launcher-linux
-          path: target/linux/valheim-launcher-linux.tar.gz
+          name: ${{ env.X_APP_NAME }}-linux
+          path: target/linux/${{ env.X_APP_NAME }}-linux.tar.gz
           retention-days: 3
           if-no-files-found: error
 
@@ -64,8 +79,8 @@ jobs:
       - name: Upload Linux installer package
         uses: actions/upload-artifact@v3
         with:
-          name: valheim-launcher-linux-installer
-          path: target/linux/valheim-launcher.tar.xz
+          name: ${{ env.X_APP_NAME }}-linux-installer
+          path: target/linux/${{ env.X_APP_NAME }}.tar.xz
           retention-days: 3
           if-no-files-found: error
 
@@ -75,7 +90,7 @@ jobs:
       - name: Upload Window package
         uses: actions/upload-artifact@v3
         with:
-          name: valheim-launcher-windows
-          path: target/windows/valheim-launcher-windows.zip
+          name: ${{ env.X_APP_NAME }}-windows
+          path: target/windows/${{ env.X_APP_NAME }}-windows.zip
           retention-days: 3
           if-no-files-found: error
