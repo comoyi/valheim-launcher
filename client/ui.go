@@ -12,11 +12,14 @@ import (
 	"github.com/comoyi/valheim-launcher/theme"
 	"github.com/comoyi/valheim-launcher/utils/dialogutil"
 	"github.com/comoyi/valheim-launcher/utils/fsutil"
+	"github.com/comoyi/valheim-launcher/utils/timeutil"
+	"time"
 )
 
 var w fyne.Window
 var c *fyne.Container
 var myApp fyne.App
+var msgContainer *widget.TextGrid = widget.NewTextGrid()
 
 func initUI() {
 	initMainWindow()
@@ -31,9 +34,12 @@ func initMainWindow() {
 	myApp.Settings().SetTheme(theme.CustomTheme)
 	w = myApp.NewWindow(windowTitle)
 	w.SetMaster()
-	w.Resize(fyne.NewSize(800, 400))
+	w.Resize(fyne.NewSize(800, 600))
 	c = container.NewVBox()
 	w.SetContent(c)
+
+	msgContainerScroll := container.NewScroll(msgContainer)
+	msgContainerScroll.SetMinSize(fyne.NewSize(800, 200))
 
 	pathLabel := widget.NewLabel("Valheim文件夹")
 	pathInput := widget.NewEntry()
@@ -102,14 +108,18 @@ func initMainWindow() {
 			return
 		}
 		if isUpdating {
+			addMsgWithTime("取消更新")
 			isUpdating = false
 			updateBtn.SetText("更新")
 			cancel()
 			return
 		}
 
+		addMsgWithTime("开始更新")
 		isUpdating = true
 		updateBtn.SetText("取消更新")
+
+		startTime := time.Now().Unix()
 
 		progressBar.SetValue(0)
 		progressBar.Show()
@@ -128,6 +138,13 @@ func initMainWindow() {
 					err := update(ctx, baseDir, progressChan)
 					if err != nil {
 						dialogutil.ShowInformation("提示", "更新失败", w)
+						addMsgWithTime("更新失败")
+					} else {
+						if isUpdating {
+							endTime := time.Now().Unix()
+							duration := endTime - startTime
+							addMsgWithTime(fmt.Sprintf("更新完成，耗时：%s", timeutil.FormatDuration(duration)))
+						}
 					}
 
 					// refresh progress bar
@@ -136,6 +153,7 @@ func initMainWindow() {
 					isUpdating = false
 					updateBtn.SetText("更新")
 					cancel()
+
 					return
 				}
 			}
@@ -173,6 +191,7 @@ func initMainWindow() {
 	c5 := container.NewAdaptiveGrid(1)
 	c5.Add(updateBtn)
 	c.Add(c5)
+	c.Add(msgContainerScroll)
 }
 
 func initMenu() {
@@ -207,4 +226,13 @@ func refreshProgressbar(progressBar *widget.ProgressBar) {
 		progressBar.Max = float64(UpdateInf.Total)
 		progressBar.Refresh()
 	}
+}
+
+func addMsgWithTime(msg string) {
+	msg = fmt.Sprintf("%s %s", timeutil.GetCurrentDateTime(), msg)
+	addMsg(msg)
+}
+
+func addMsg(msg string) {
+	msgContainer.SetText(msg + "\n" + msgContainer.Text())
 }
