@@ -23,22 +23,14 @@ type UpdateInfo struct {
 	Total   int
 }
 
-func (u *UpdateInfo) GetRatio() float64 {
-	return float64(u.Current) / float64(u.Total)
-}
+var UpdateInf *UpdateInfo = &UpdateInfo{}
 
-var UpdateInf *UpdateInfo
-
-func init() {
-	UpdateInf = &UpdateInfo{}
-}
-
-func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
+func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) error {
 	log.Infof("baseDir: %v\n", baseDir)
 
 	if baseDir == "" {
 		log.Warnf("未选择文件夹\n")
-		return
+		return fmt.Errorf("invalid base dir")
 	}
 
 	resp, err := http.Get(getFullUrl("/files"))
@@ -46,18 +38,18 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 		log.Debugf("request failed, err: %v\n", err)
 		n := fyne.NewNotification("提示", "从服务器获取文件列表失败")
 		fyne.CurrentApp().SendNotification(n)
-		return
+		return err
 	}
 	j, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Debugf("read file failed, err: %v\n", err)
-		return
+		return err
 	}
 	var serverFileInfo *ServerFileInfo
 	err = json.Unmarshal(j, &serverFileInfo)
 	if err != nil {
 		log.Debugf("json.Unmarshal failed, err: %v\n", err)
-		return
+		return err
 	}
 
 	serverFiles := serverFileInfo.Files
@@ -76,14 +68,14 @@ syncFile:
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		default:
 			select {
 			case f := <-syncChan:
 				err := syncFile(f, baseDir)
 				if err != nil {
 					log.Debugf("sync file failed, fileInfo: %+v, err: %s\n", f, err)
-					return
+					return err
 				}
 				UpdateInf.Current += 1
 				go func() {
@@ -95,7 +87,12 @@ syncFile:
 		}
 	}
 
-	deleteFiles(serverFileInfo, baseDir)
+	err = deleteFiles(serverFileInfo, baseDir)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func syncFile(fileInfo *FileInfo, baseDir string) error {
@@ -113,41 +110,59 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 
 	if fileInfo.Type == TypeDir {
 		if isExist {
-			return nil
+			fi, err := os.Stat(localPath)
+			if err != nil {
+				return err
+			}
+			if fi.IsDir() {
+				log.Debugf("[SKIP]same dir skip , localPath: %s\n", localPath)
+				return nil
+			} else {
+				log.Debugf("expected a dir but a file, delete it, localPath: %s\n", localPath)
+				err := os.RemoveAll(localPath)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		err = os.MkdirAll(localPath, os.ModePerm)
 		if err != nil {
-			log.Warnf("os.Mkdir failed, err: %v\n", err)
 			return err
 		}
 	} else {
 		if isExist {
-			f, err := os.Open(localPath)
+			fi, err := os.Stat(localPath)
 			if err != nil {
 				return err
 			}
-			bytes, err := io.ReadAll(f)
-			if err != nil {
-				return err
-			}
-			hashSumRaw := md5.Sum(bytes)
-			hashSum := fmt.Sprintf("%x", hashSumRaw)
-			log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.Path, fileInfo.Hash, hashSum)
+			if fi.IsDir() {
+				log.Debugf("expected a file but a dir, delete it, localPath: %s\n", localPath)
+				err := os.RemoveAll(localPath)
+				if err != nil {
+					return err
+				}
+			} else {
+				f, err := os.Open(localPath)
+				if err != nil {
+					return err
+				}
+				bytes, err := io.ReadAll(f)
+				if err != nil {
+					return err
+				}
+				hashSumRaw := md5.Sum(bytes)
+				hashSum := fmt.Sprintf("%x", hashSumRaw)
+				log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.Path, fileInfo.Hash, hashSum)
 
-			if hashSum == fileInfo.Hash {
-				log.Debugf("same file skip , localPath: %s\n", localPath)
-				return nil
+				if hashSum == fileInfo.Hash {
+					log.Debugf("[SKIP]same file skip , localPath: %s\n", localPath)
+					return nil
+				}
 			}
 		}
-		//log.Debugf("remove local file, localPath: %s\n", localPath)
-		//err = os.Remove(localPath)
-		//if err != nil {
-		//	return err
-		//}
 		localDir := filepath.Dir(localPath)
 		err = os.MkdirAll(localDir, os.ModePerm)
 		if err != nil {
-			log.Warnf("os.Mkdir failed, err: %v\n", err)
 			return err
 		}
 
@@ -170,7 +185,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 	}
 
-	log.Debugf("[OK]synced file info %+v\n", fileInfo)
+	log.Debugf("[SYNC]synced file info %+v\n", fileInfo)
 
 	return nil
 }
@@ -179,11 +194,11 @@ type ClientFileInfo struct {
 	Files []*FileInfo `json:"files"`
 }
 
-func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) {
+func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 	clientFileInfo, err := getClientFileInfo(baseDir)
 	if err != nil {
 		log.Warnf("getClientFileInfo failed, err: %v\n", err)
-		return
+		return err
 	}
 	files := clientFileInfo.Files
 	for _, file := range files {
@@ -194,11 +209,13 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) {
 				err := os.RemoveAll(path)
 				if err != nil {
 					log.Warnf("delete file failed, err: %v, file: %s\n", err, file.Path)
-					return
+					return err
 				}
+				log.Debugf("[DELETE]delete, localPath: %s\n", path)
 			}
 		}
 	}
+	return nil
 }
 
 func in(file string, files []*FileInfo) bool {

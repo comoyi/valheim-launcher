@@ -12,7 +12,6 @@ import (
 	"github.com/comoyi/valheim-launcher/theme"
 	"github.com/comoyi/valheim-launcher/utils/dialogutil"
 	"github.com/comoyi/valheim-launcher/utils/fsutil"
-	"time"
 )
 
 var w fyne.Window
@@ -62,7 +61,8 @@ func initMainWindow() {
 
 	autoBtnText := "自动查找文件夹"
 	autoBtn := widget.NewButton(autoBtnText, func() {
-		dirs := GetDirs()
+		isFound := false
+		dirs := getPossibleDirs()
 		for _, dir := range dirs {
 			log.Debugf("check dir, %v\n", dir)
 			exists, err := fsutil.Exists(dir)
@@ -71,12 +71,14 @@ func initMainWindow() {
 				continue
 			}
 			if exists {
-				log.Debugf("dir exist, %v\n", dir)
+				isFound = true
+				log.Debugf("found dir, %v\n", dir)
 				pathInput.SetText(dir)
 				break
-			} else {
-				log.Debugf("dir not exist, %v\n", dir)
 			}
+		}
+		if !isFound {
+			dialogutil.ShowInformation("", "未找到相关文件夹，请手动选择", w)
 		}
 	})
 
@@ -123,10 +125,13 @@ func initMainWindow() {
 				case <-ctx.Done():
 					return
 				default:
-					update(ctx, baseDir, progressChan)
+					err := update(ctx, baseDir, progressChan)
+					if err != nil {
+						dialogutil.ShowInformation("提示", "更新失败", w)
+					}
 
-					// delay for progress bar
-					<-time.After(50 * time.Millisecond)
+					// refresh progress bar
+					refreshProgressbar(progressBar)
 
 					isUpdating = false
 					updateBtn.SetText("更新")
@@ -146,14 +151,7 @@ func initMainWindow() {
 					case <-ctx.Done():
 						return
 					default:
-						if progressBar.Value == float64(UpdateInf.Current) && progressBar.Max == float64(UpdateInf.Total) {
-							break
-						} else {
-							//progressBar.SetValue(UpdateInf.GetRatio())
-							progressBar.Value = float64(UpdateInf.Current)
-							progressBar.Max = float64(UpdateInf.Total)
-							progressBar.Refresh()
-						}
+						refreshProgressbar(progressBar)
 					}
 				}
 			}
@@ -199,4 +197,14 @@ func initMenu() {
 	helpMenu := fyne.NewMenu("帮助", helpMenuItem)
 	mainMenu := fyne.NewMainMenu(firstMenu, helpMenu)
 	w.SetMainMenu(mainMenu)
+}
+
+func refreshProgressbar(progressBar *widget.ProgressBar) {
+	if progressBar.Value == float64(UpdateInf.Current) && progressBar.Max == float64(UpdateInf.Total) {
+		return
+	} else {
+		progressBar.Value = float64(UpdateInf.Current)
+		progressBar.Max = float64(UpdateInf.Total)
+		progressBar.Refresh()
+	}
 }
