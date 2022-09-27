@@ -32,3 +32,7 @@ bundle-font:
 
 bundle-font-build:
 	fyne bundle --package fonts --prefix Resource --name DefaultFont -o fonts/default_font.go /usr/local/share/fonts/HarmonyOS_Sans_SC_Regular.ttf
+
+deps:
+	go get fyne.io/fyne/v2
+	go install fyne.io/fyne/v2/cmd/fyne@latest

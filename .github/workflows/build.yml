@@ -1,0 +1,76 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'develop'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Add GOPATH to $PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Install Prerequisites
+        run: sudo apt-get install gcc-mingw-w64-x86-64
+
+      #https://developer.fyne.io/started/#prerequisites
+      - name: Prerequisites for fyne
+        run: sudo apt-get install gcc libgl1-mesa-dev xorg-dev
+
+      - name: Install Fonts
+        run: |
+          wget -O HarmonyOS_Sans.zip https://communityfile-drcn.op.hicloud.com/FileServer/getFile/cmtyPub/011/111/111/0000000000011111111.20220527115222.36009086555928047609106823953760:50530526070936:2800:E1CA794341643D6B6FFE8F1EE2DBB96B786975D088FDA18348E89FEC28135686.zip?needInitFileName=true
+          unzip HarmonyOS_Sans.zip
+          mkdir -p /usr/local/share/fonts
+          sudo cp HarmonyOS\ Sans/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Regular.ttf /usr/local/share/fonts
+
+      - name: Install fyne
+        run: make deps
+
+      - name: Generate font source
+        run: make bundle-font-build
+
+      - name: Go mod tidy
+        run: go mod tidy
+
+#      - name: Build
+#        run: make build
+
+      - name: Package Linux
+        run: make package-linux
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v3
+        with:
+          name: valheim-launcher-linux
+          path: target/linux/valheim-launcher-linux.tar.gz
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Package Linux Installer
+        run: make package-linux-installer
+
+      - name: Upload Linux installer package
+        uses: actions/upload-artifact@v3
+        with:
+          name: valheim-launcher-linux-installer
+          path: target/linux/valheim-launcher.tar.xz
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Package Windows
+        run: make package-windows
+
+      - name: Upload Window package
+        uses: actions/upload-artifact@v3
+        with:
+          name: valheim-launcher-windows
+          path: target/windows/valheim-launcher-windows.zip
+          retention-days: 3
+          if-no-files-found: error
