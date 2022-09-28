@@ -271,7 +271,7 @@ func getClientFileInfo(baseDir string) (*ClientFileInfo, error) {
 func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 	return func(path string, info fs.FileInfo, err error) error {
 		if !strings.HasPrefix(path, baseDir) {
-			log.Warnf("path not excepted, path: %s\n", path)
+			log.Warnf("path not expected, path: %s\n", path)
 			return nil
 		}
 		pathRelative := strings.TrimPrefix(path, baseDir)

@@ -48,9 +48,6 @@ func FormatDuration(second int64) string {
 		flag = true
 		str = fmt.Sprintf("%s%d分", str, m)
 	}
-	if flag || s > 0 {
-		flag = true
-		str = fmt.Sprintf("%s%d秒", str, s)
-	}
+	str = fmt.Sprintf("%s%d秒", str, s)
 	return str
 }
