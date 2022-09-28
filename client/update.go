@@ -32,22 +32,37 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 		return fmt.Errorf("invalid base dir")
 	}
 
-	resp, err := http.Get(getFullUrl("/files"))
+	j, err := httpGet(getFullUrl("/files"))
 	if err != nil {
 		log.Debugf("request failed, err: %v\n", err)
 		addMsgWithTime("从服务器获取文件列表失败")
 		return err
 	}
-	j, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Debugf("read file failed, err: %v\n", err)
-		return err
-	}
 	var serverFileInfo *ServerFileInfo
-	err = json.Unmarshal(j, &serverFileInfo)
+	err = json.Unmarshal([]byte(j), &serverFileInfo)
 	if err != nil {
 		log.Debugf("json.Unmarshal failed, err: %v\n", err)
 		return err
+	}
+
+	scanStatus := serverFileInfo.ScanStatus
+	if scanStatus != ScanStatusCompleted {
+		if scanStatus == ScanStatusScanning {
+			msg := "服务器正在刷新文件列表，请稍后再试"
+			addMsgWithTime(msg)
+			return fmt.Errorf(msg)
+		} else if scanStatus == ScanStatusFailed {
+			msg := "服务器刷新文件列表失败"
+			addMsgWithTime(msg)
+			return fmt.Errorf(msg)
+		} else if scanStatus == ScanStatusWait {
+			msg := "等待服务器刷新文件列表，请稍后再试"
+			addMsgWithTime(msg)
+			return fmt.Errorf(msg)
+		}
+		msg := "服务器异常，请稍后再试"
+		addMsgWithTime(msg)
+		return fmt.Errorf(msg)
 	}
 
 	serverFiles := serverFileInfo.Files
@@ -302,4 +317,16 @@ func getFullUrl(path string) string {
 	port := config.Conf.Port
 	u := fmt.Sprintf("%s://%s:%d%s", protocol, host, port, path)
 	return u
+}
+
+func httpGet(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	j, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(j), nil
 }
