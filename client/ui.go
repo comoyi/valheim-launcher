@@ -13,6 +13,7 @@ import (
 	"github.com/comoyi/valheim-launcher/utils/dialogutil"
 	"github.com/comoyi/valheim-launcher/utils/fsutil"
 	"github.com/comoyi/valheim-launcher/utils/timeutil"
+	"path/filepath"
 	"time"
 )
 
@@ -60,6 +61,7 @@ func initMainWindow() {
 			path := uri.Path()
 			dialog.NewCustomConfirm("提示", "确定", "取消", widget.NewLabel("选择这个文件夹吗？\n"+path), func(b bool) {
 				if b {
+					path = filepath.Clean(path)
 					pathInput.SetText(path)
 				}
 			}, w).Show()
@@ -109,6 +111,8 @@ func initMainWindow() {
 			dialogutil.ShowInformation("提示", "请选择文件夹", w)
 			return
 		}
+		baseDir = filepath.Clean(baseDir)
+
 		if isUpdating {
 			addMsgWithTime("取消更新")
 			isUpdating = false

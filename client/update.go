@@ -159,6 +159,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 				if err != nil {
 					return err
 				}
+				defer f.Close()
 				bytes, err := io.ReadAll(f)
 				if err != nil {
 					return err
@@ -233,7 +234,7 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 
 func in(file string, files []*FileInfo) bool {
 	for _, f := range files {
-		if file == f.Path {
+		if file == filepath.Clean(f.Path) {
 			return true
 		}
 	}
@@ -290,6 +291,7 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 			if err != nil {
 				return err
 			}
+			defer f.Close()
 			bytes, err := io.ReadAll(f)
 			if err != nil {
 				return err
