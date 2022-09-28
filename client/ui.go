@@ -19,7 +19,8 @@ import (
 var w fyne.Window
 var c *fyne.Container
 var myApp fyne.App
-var msgContainer *widget.TextGrid = widget.NewTextGrid()
+var msgContainer = widget.NewLabel("")
+var announcementContainer = widget.NewLabel("")
 
 func initUI() {
 	initMainWindow()
@@ -78,8 +79,9 @@ func initMainWindow() {
 			}
 			if exists {
 				isFound = true
-				log.Debugf("found dir, %v\n", dir)
 				pathInput.SetText(dir)
+				log.Debugf("found dir, %v\n", dir)
+				addMsgWithTime("找到文件夹")
 				break
 			}
 		}
@@ -177,20 +179,35 @@ func initMainWindow() {
 
 	})
 
+	announcementContainerScroll := container.NewScroll(announcementContainer)
+	announcementContainerScroll.SetMinSize(fyne.NewSize(800, 100))
+	announcementContainerScroll.Hide()
+
+	go func() {
+		refreshAnnouncement(announcementContainer, announcementContainerScroll)
+		for {
+			select {
+			case <-time.After(10 * time.Second):
+				refreshAnnouncement(announcementContainer, announcementContainerScroll)
+			}
+		}
+	}()
+
 	c.Add(pathLabel)
-	c2 := container.NewAdaptiveGrid(1)
-	c2.Add(pathInput)
+	c2 := container.NewAdaptiveGrid(2)
+	c2.Add(selectBtn)
+	c2.Add(autoBtn)
 	c.Add(c2)
-	c3 := container.NewAdaptiveGrid(2)
-	c3.Add(selectBtn)
-	c3.Add(autoBtn)
+	c3 := container.NewAdaptiveGrid(1)
+	c3.Add(pathInput)
 	c.Add(c3)
 	c4 := container.NewAdaptiveGrid(1)
-	c4.Add(progressBar)
+	c4.Add(updateBtn)
 	c.Add(c4)
 	c5 := container.NewAdaptiveGrid(1)
-	c5.Add(updateBtn)
+	c5.Add(progressBar)
 	c.Add(c5)
+	c.Add(announcementContainerScroll)
 	c.Add(msgContainerScroll)
 }
 
@@ -234,5 +251,5 @@ func addMsgWithTime(msg string) {
 }
 
 func addMsg(msg string) {
-	msgContainer.SetText(msg + "\n" + msgContainer.Text())
+	msgContainer.SetText(msg + "\n" + msgContainer.Text)
 }
