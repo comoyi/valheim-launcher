@@ -8,11 +8,13 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/theme"
 	"github.com/comoyi/valheim-launcher/utils/dialogutil"
 	"github.com/comoyi/valheim-launcher/utils/fsutil"
 	"github.com/comoyi/valheim-launcher/utils/timeutil"
+	"github.com/spf13/viper"
 	"path/filepath"
 	"time"
 )
@@ -40,8 +42,8 @@ func initMainWindow() {
 	w.SetContent(c)
 
 	pathLabel := widget.NewLabel("Valheim文件夹")
-	pathInput := widget.NewEntry()
-	pathInput.Disable()
+	pathInput := widget.NewLabel("")
+	pathInput.SetText(config.Conf.Dir)
 
 	selectBtnText := "手动选择文件夹"
 	selectBtn := widget.NewButton(selectBtnText, func() {
@@ -59,6 +61,7 @@ func initMainWindow() {
 			dialog.NewCustomConfirm("提示", "确定", "取消", widget.NewLabel("选择这个文件夹吗？\n"+path), func(b bool) {
 				if b {
 					pathInput.SetText(path)
+					saveDirConfig(path)
 				}
 			}, w).Show()
 		}, w)
@@ -78,6 +81,7 @@ func initMainWindow() {
 			if exists {
 				isFound = true
 				pathInput.SetText(dir)
+				saveDirConfig(dir)
 				log.Debugf("found dir, %v\n", dir)
 				addMsgWithTime("找到文件夹")
 				break
@@ -269,4 +273,13 @@ func addMsgWithTime(msg string) {
 
 func addMsg(msg string) {
 	msgContainer.SetText(msg + "\n" + msgContainer.Text)
+}
+
+func saveDirConfig(path string) {
+	viper.Set("dir", path)
+	err := config.SaveConfig()
+	if err != nil {
+		log.Debugf("save config failed, err: %+v\n", err)
+		return
+	}
 }
