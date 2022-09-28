@@ -2,18 +2,18 @@ package client
 
 import (
 	"encoding/json"
-	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"github.com/comoyi/valheim-launcher/log"
 )
 
-func refreshAnnouncement(w *widget.Label, scroll *container.Scroll) {
+func refreshAnnouncement(w *widget.Label, box *fyne.Container) {
 	announcement, err := getAnnouncement()
 	if err != nil || announcement == nil || announcement.Content == "" {
-		scroll.Hide()
+		box.Hide()
 	} else {
 		w.SetText(announcement.Content)
-		scroll.Show()
+		box.Show()
 	}
 }
 

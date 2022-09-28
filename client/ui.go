@@ -21,7 +21,6 @@ var w fyne.Window
 var c *fyne.Container
 var myApp fyne.App
 var msgContainer = widget.NewLabel("")
-var announcementContainer = widget.NewLabel("")
 
 func initUI() {
 	initMainWindow()
@@ -39,9 +38,6 @@ func initMainWindow() {
 	w.Resize(fyne.NewSize(800, 600))
 	c = container.NewVBox()
 	w.SetContent(c)
-
-	msgContainerScroll := container.NewScroll(msgContainer)
-	msgContainerScroll.SetMinSize(fyne.NewSize(800, 200))
 
 	pathLabel := widget.NewLabel("Valheim文件夹")
 	pathInput := widget.NewEntry()
@@ -183,20 +179,6 @@ func initMainWindow() {
 
 	})
 
-	announcementContainerScroll := container.NewScroll(announcementContainer)
-	announcementContainerScroll.SetMinSize(fyne.NewSize(800, 100))
-	announcementContainerScroll.Hide()
-
-	go func() {
-		refreshAnnouncement(announcementContainer, announcementContainerScroll)
-		for {
-			select {
-			case <-time.After(10 * time.Second):
-				refreshAnnouncement(announcementContainer, announcementContainerScroll)
-			}
-		}
-	}()
-
 	c.Add(pathLabel)
 	c2 := container.NewAdaptiveGrid(2)
 	c2.Add(selectBtn)
@@ -211,8 +193,9 @@ func initMainWindow() {
 	c5 := container.NewAdaptiveGrid(1)
 	c5.Add(progressBar)
 	c.Add(c5)
-	c.Add(announcementContainerScroll)
-	c.Add(msgContainerScroll)
+
+	initAnnouncement(c)
+	initMsgContainer(c)
 }
 
 func initMenu() {
@@ -237,6 +220,36 @@ func initMenu() {
 	helpMenu := fyne.NewMenu("帮助", helpMenuItem)
 	mainMenu := fyne.NewMainMenu(firstMenu, helpMenu)
 	w.SetMainMenu(mainMenu)
+}
+
+func initAnnouncement(c *fyne.Container) {
+	var announcementContainer = widget.NewLabel("")
+	announcementBox := container.NewVBox()
+	announcementLabel := widget.NewLabel("公告")
+	announcementContainerScroll := container.NewScroll(announcementContainer)
+	announcementContainerScroll.SetMinSize(fyne.NewSize(800, 100))
+	announcementBox.Hide()
+	announcementBox.Add(announcementLabel)
+	announcementBox.Add(announcementContainerScroll)
+	c.Add(announcementBox)
+
+	go func() {
+		refreshAnnouncement(announcementContainer, announcementBox)
+		for {
+			select {
+			case <-time.After(10 * time.Second):
+				refreshAnnouncement(announcementContainer, announcementBox)
+			}
+		}
+	}()
+}
+
+func initMsgContainer(c *fyne.Container) {
+	msgBox := container.NewVBox()
+	msgContainerScroll := container.NewScroll(msgContainer)
+	msgContainerScroll.SetMinSize(fyne.NewSize(800, 200))
+	msgBox.Add(msgContainerScroll)
+	c.Add(msgBox)
 }
 
 func refreshProgressbar(progressBar *widget.ProgressBar) {
