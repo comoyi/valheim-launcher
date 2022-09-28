@@ -59,9 +59,9 @@ func initMainWindow() {
 				return
 			}
 			path := uri.Path()
+			path = filepath.Clean(path)
 			dialog.NewCustomConfirm("提示", "确定", "取消", widget.NewLabel("选择这个文件夹吗？\n"+path), func(b bool) {
 				if b {
-					path = filepath.Clean(path)
 					pathInput.SetText(path)
 				}
 			}, w).Show()
