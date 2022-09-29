@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"github.com/comoyi/valheim-launcher/config"
@@ -281,17 +280,10 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 				Hash:         "",
 			}
 		} else {
-			f, err := os.Open(path)
+			hashSum, err := md5util.SumFile(path)
 			if err != nil {
 				return err
 			}
-			defer f.Close()
-			bytes, err := io.ReadAll(f)
-			if err != nil {
-				return err
-			}
-			hashSumRaw := md5.Sum(bytes)
-			hashSum := fmt.Sprintf("%x", hashSumRaw)
 			log.Tracef("file: %s, hashSum: %s\n", relativePath, hashSum)
 			file = &FileInfo{
 				RelativePath: relativePath,
