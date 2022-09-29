@@ -275,14 +275,14 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 			log.Warnf("path not expected, path: %s\n", path)
 			return nil
 		}
-		pathRelative := strings.TrimPrefix(path, baseDir)
-		if pathRelative == "" {
+		relativePath := strings.TrimPrefix(path, baseDir)
+		if relativePath == "" {
 			return nil
 		}
 		var file *FileInfo
 		if info.IsDir() {
 			file = &FileInfo{
-				RelativePath: pathRelative,
+				RelativePath: relativePath,
 				Type:         TypeDir,
 				Hash:         "",
 			}
@@ -300,7 +300,7 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 			hashSum := fmt.Sprintf("%x", hashSumRaw)
 			log.Tracef("file: %s, hashSum: %s\n", path, hashSum)
 			file = &FileInfo{
-				RelativePath: pathRelative,
+				RelativePath: relativePath,
 				Type:         TypeFile,
 				Hash:         hashSum,
 			}
