@@ -145,6 +145,7 @@ func initMainWindow() {
 					if err != nil {
 						dialogutil.ShowInformation("提示", "更新失败", w)
 						addMsgWithTime("更新失败")
+						log.Debugf("update failed, err: %v\n", err)
 					} else {
 						if isUpdating {
 							endTime := time.Now().Unix()

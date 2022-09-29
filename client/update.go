@@ -232,13 +232,13 @@ func in(file string, files []*FileInfo) bool {
 	return false
 }
 
-func isInAllowDeleteDirs(file string) bool {
+func isInAllowDeleteDirs(relativePath string) bool {
 	allowDeleteDirs := make([]string, 0)
 	allowDeleteDirs = append(allowDeleteDirs, "BepInEx")
 	allowDeleteDirs = append(allowDeleteDirs, "doorstop_libs")
 	allowDeleteDirs = append(allowDeleteDirs, "unstripped_corlib")
-	for _, f := range allowDeleteDirs {
-		if strings.HasPrefix(file, "/"+f) || strings.HasPrefix(file, "\\"+f) {
+	for _, dir := range allowDeleteDirs {
+		if strings.HasPrefix(relativePath, dir) || strings.HasPrefix(relativePath, "/"+dir) || strings.HasPrefix(relativePath, "\\"+dir) {
 			return true
 		}
 	}
@@ -270,9 +270,12 @@ func doGetClientFileInfo(baseDir string, isHash bool) (*ClientFileInfo, error) {
 
 func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc {
 	return func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if !strings.HasPrefix(path, baseDir) {
-			log.Warnf("path not expected, path: %s\n", path)
-			return nil
+			log.Warnf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
+			return fmt.Errorf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
 		}
 		relativePath := strings.TrimPrefix(path, baseDir)
 		if relativePath == "" {
