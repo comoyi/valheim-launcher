@@ -275,6 +275,9 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 		if err != nil {
 			return err
 		}
+		if path == baseDir {
+			return nil
+		}
 		if !strings.HasPrefix(path, baseDir) {
 			log.Warnf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
 			return fmt.Errorf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
