@@ -8,16 +8,25 @@ import (
 )
 
 const (
-	Trace int = 100
-	Debug int = 200
-	Info  int = 300
-	Warn  int = 400
-	Error int = 500
-	Off   int = 900
+	Trace string = "TRACE"
+	Debug string = "DEBUG"
+	Info  string = "INFO"
+	Warn  string = "WARN"
+	Error string = "ERROR"
+	Off   string = "OFF"
 )
 
+var logLevelMap = map[string]int{
+	Trace: 100,
+	Debug: 200,
+	Info:  300,
+	Warn:  400,
+	Error: 500,
+	Off:   900,
+}
+
 func Tracef(format string, args ...interface{}) {
-	if viper.GetInt("LogLevel") > Trace {
+	if logLevelMap[viper.GetString("log_level")] > logLevelMap[Trace] {
 		return
 	}
 	s := fmt.Sprintf("[TRACE]"+format, args...)
@@ -25,7 +34,7 @@ func Tracef(format string, args ...interface{}) {
 }
 
 func Debugf(format string, args ...interface{}) {
-	if viper.GetInt("LogLevel") > Debug {
+	if logLevelMap[viper.GetString("log_level")] > logLevelMap[Debug] {
 		return
 	}
 	s := fmt.Sprintf("[DEBUG]"+format, args...)
@@ -33,7 +42,7 @@ func Debugf(format string, args ...interface{}) {
 }
 
 func Infof(format string, args ...interface{}) {
-	if viper.GetInt("LogLevel") > Info {
+	if logLevelMap[viper.GetString("log_level")] > logLevelMap[Info] {
 		return
 	}
 	s := fmt.Sprintf("[INFO] "+format, args...)
@@ -41,7 +50,7 @@ func Infof(format string, args ...interface{}) {
 }
 
 func Warnf(format string, args ...interface{}) {
-	if viper.GetInt("LogLevel") > Warn {
+	if logLevelMap[viper.GetString("log_level")] > logLevelMap[Warn] {
 		return
 	}
 	s := fmt.Sprintf("[WARN] "+format, args...)
@@ -49,7 +58,7 @@ func Warnf(format string, args ...interface{}) {
 }
 
 func Errorf(format string, args ...interface{}) {
-	if viper.GetInt("LogLevel") > Error {
+	if logLevelMap[viper.GetString("log_level")] > logLevelMap[Error] {
 		return
 	}
 	s := fmt.Sprintf("[ERROR]"+format, args...)
