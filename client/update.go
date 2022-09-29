@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
+	"github.com/comoyi/valheim-launcher/utils/cryptoutil/md5util"
 	"github.com/comoyi/valheim-launcher/utils/fsutil"
 	"io"
 	"io/fs"
@@ -112,9 +113,8 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 	var err error
 	log.Debugf("syncing file info %+v\n", fileInfo)
 
-	localPathRaw := fmt.Sprintf("%s%s", baseDir, fileInfo.RelativePath)
-	localPath := filepath.Clean(localPathRaw)
-	log.Debugf("serverPath: %s, localPathRaw: %s, localPath: %s\n", fileInfo.RelativePath, localPathRaw, localPath)
+	localPath := filepath.Join(baseDir, fileInfo.RelativePath)
+	log.Debugf("serverRelativePath: %s, localPath: %s\n", fileInfo.RelativePath, localPath)
 
 	isExist, err := fsutil.Exists(localPath)
 	if err != nil {
@@ -131,7 +131,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 				log.Debugf("[SKIP]same dir skip , localPath: %s\n", localPath)
 				return nil
 			} else {
-				log.Debugf("expected a dir but a file, delete it, localPath: %s\n", localPath)
+				log.Debugf("[DELETE]expected a dir but a file, delete it, localPath: %s\n", localPath)
 				err := os.RemoveAll(localPath)
 				if err != nil {
 					return err
@@ -149,23 +149,16 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 				return err
 			}
 			if fi.IsDir() {
-				log.Debugf("expected a file but a dir, delete it, localPath: %s\n", localPath)
+				log.Debugf("[DELETE]expected a file but a dir, delete it, localPath: %s\n", localPath)
 				err := os.RemoveAll(localPath)
 				if err != nil {
 					return err
 				}
 			} else {
-				f, err := os.Open(localPath)
+				hashSum, err := md5util.SumFile(localPath)
 				if err != nil {
 					return err
 				}
-				defer f.Close()
-				bytes, err := io.ReadAll(f)
-				if err != nil {
-					return err
-				}
-				hashSumRaw := md5.Sum(bytes)
-				hashSum := fmt.Sprintf("%x", hashSumRaw)
 				log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.RelativePath, fileInfo.Hash, hashSum)
 
 				if hashSum == fileInfo.Hash {
@@ -281,6 +274,7 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 		}
 		var file *FileInfo
 		if info.IsDir() {
+			log.Tracef("dir:  %s\n", relativePath)
 			file = &FileInfo{
 				RelativePath: relativePath,
 				Type:         TypeDir,
@@ -298,7 +292,7 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 			}
 			hashSumRaw := md5.Sum(bytes)
 			hashSum := fmt.Sprintf("%x", hashSumRaw)
-			log.Tracef("file: %s, hashSum: %s\n", path, hashSum)
+			log.Tracef("file: %s, hashSum: %s\n", relativePath, hashSum)
 			file = &FileInfo{
 				RelativePath: relativePath,
 				Type:         TypeFile,
