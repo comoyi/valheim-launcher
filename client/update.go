@@ -240,7 +240,7 @@ func isInAllowDeleteDirs(relativePath string) bool {
 	allowDeleteDirs = append(allowDeleteDirs, "doorstop_libs")
 	allowDeleteDirs = append(allowDeleteDirs, "unstripped_corlib")
 	for _, dir := range allowDeleteDirs {
-		if strings.HasPrefix(relativePath, dir) || strings.HasPrefix(relativePath, "/"+dir) || strings.HasPrefix(relativePath, "\\"+dir) {
+		if strings.HasPrefix(relativePath, dir) {
 			return true
 		}
 	}
