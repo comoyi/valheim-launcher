@@ -166,6 +166,15 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 				}
 			}
 		}
+
+		q := url.Values{}
+		q.Set("file", fileInfo.RelativePath)
+		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
 		localDir := filepath.Dir(localPath)
 		err = os.MkdirAll(localDir, os.ModePerm)
 		if err != nil {
@@ -178,13 +187,6 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 		defer file.Close()
 
-		q := url.Values{}
-		q.Set("file", fileInfo.RelativePath)
-		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
 		_, err = io.Copy(file, resp.Body)
 		if err != nil {
 			return err
@@ -277,7 +279,10 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 			log.Warnf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
 			return fmt.Errorf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
 		}
-		relativePath := strings.TrimPrefix(path, baseDir)
+		relativePath, err := filepath.Rel(baseDir, path)
+		if err != nil {
+			return err
+		}
 		if relativePath == "" {
 			return nil
 		}
