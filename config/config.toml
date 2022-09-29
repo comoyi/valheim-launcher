@@ -1,11 +1,11 @@
 # 日志等级 TRACE DEBUG INFO WARN ERROR OFF
-debuglevel = "OFF"
+debuglevel = 'OFF'
 
 # 协议
-protocol = "http"
+protocol = 'http'
 
 # 服务器域名 / ip
-host = "127.0.0.1"
+host = '127.0.0.1'
 
 # 服务器端口
 port = 8080
