@@ -210,8 +210,7 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 	for _, file := range files {
 		if !in(file.RelativePath, serverFileInfo.Files) {
 			if isInAllowDeleteDirs(file.RelativePath) {
-				log.Debugf("will delete, file: %s\n", file.RelativePath)
-				path := fmt.Sprintf("%s%s", baseDir, file.RelativePath)
+				path := filepath.Join(baseDir, file.RelativePath)
 				err := os.RemoveAll(path)
 				if err != nil {
 					log.Warnf("delete file failed, err: %v, file: %s\n", err, file.RelativePath)
