@@ -283,6 +283,9 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 		if err != nil {
 			return err
 		}
+		if strings.HasPrefix(relativePath, ".") {
+			return fmt.Errorf("relativePath not expected, baseDir: %s, path: %s, relativePath: %s\n", baseDir, path, relativePath)
+		}
 		if relativePath == "" {
 			return nil
 		}
