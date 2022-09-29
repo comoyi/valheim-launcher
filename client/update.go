@@ -201,7 +201,7 @@ type ClientFileInfo struct {
 }
 
 func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
-	clientFileInfo, err := getClientFileInfo(baseDir)
+	clientFileInfo, err := getClientFileInfoWithoutHash(baseDir)
 	if err != nil {
 		log.Warnf("getClientFileInfo failed, err: %v\n", err)
 		return err
@@ -246,12 +246,20 @@ func isInAllowDeleteDirs(file string) bool {
 	return false
 }
 
+func getClientFileInfoWithoutHash(baseDir string) (*ClientFileInfo, error) {
+	return doGetClientFileInfo(baseDir, false)
+}
+
 func getClientFileInfo(baseDir string) (*ClientFileInfo, error) {
+	return doGetClientFileInfo(baseDir, true)
+}
+
+func doGetClientFileInfo(baseDir string, isHash bool) (*ClientFileInfo, error) {
 	var clientFileInfo = &ClientFileInfo{}
 
 	files := make([]*FileInfo, 0)
 
-	err := filepath.Walk(baseDir, walkFun(&files, baseDir))
+	err := filepath.Walk(baseDir, walkFun(&files, baseDir, isHash))
 	if err != nil {
 		log.Debugf("refresh files info failed\n")
 		return nil, err
@@ -261,7 +269,7 @@ func getClientFileInfo(baseDir string) (*ClientFileInfo, error) {
 	return clientFileInfo, nil
 }
 
-func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
+func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc {
 	return func(path string, info fs.FileInfo, err error) error {
 		if !strings.HasPrefix(path, baseDir) {
 			log.Warnf("path not expected, path: %s\n", path)
@@ -280,11 +288,17 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 				Hash:         "",
 			}
 		} else {
-			hashSum, err := md5util.SumFile(path)
-			if err != nil {
-				return err
+			var hashSum string
+			if isHash {
+				var err error
+				hashSum, err = md5util.SumFile(path)
+				if err != nil {
+					return err
+				}
+				log.Tracef("file: %s, hashSum: %s\n", relativePath, hashSum)
+			} else {
+				log.Tracef("file: %s\n", relativePath)
 			}
-			log.Tracef("file: %s, hashSum: %s\n", relativePath, hashSum)
 			file = &FileInfo{
 				RelativePath: relativePath,
 				Type:         TypeFile,
