@@ -22,9 +22,10 @@ type ServerFileInfo struct {
 }
 
 type FileInfo struct {
-	Path string   `json:"path"`
-	Type FileType `json:"type"`
-	Hash string   `json:"hash"`
+	Path         string   `json:"path"`
+	RelativePath string   `json:"relative_path"`
+	Type         FileType `json:"type"`
+	Hash         string   `json:"hash"`
 }
 
 type Announcement struct {

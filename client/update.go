@@ -112,9 +112,9 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 	var err error
 	log.Debugf("syncing file info %+v\n", fileInfo)
 
-	localPathRaw := fmt.Sprintf("%s%s", baseDir, fileInfo.Path)
+	localPathRaw := fmt.Sprintf("%s%s", baseDir, fileInfo.RelativePath)
 	localPath := filepath.Clean(localPathRaw)
-	log.Debugf("serverPath: %s, localPathRaw: %s, localPath: %s\n", fileInfo.Path, localPathRaw, localPath)
+	log.Debugf("serverPath: %s, localPathRaw: %s, localPath: %s\n", fileInfo.RelativePath, localPathRaw, localPath)
 
 	isExist, err := fsutil.Exists(localPath)
 	if err != nil {
@@ -166,7 +166,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 				}
 				hashSumRaw := md5.Sum(bytes)
 				hashSum := fmt.Sprintf("%x", hashSumRaw)
-				log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.Path, fileInfo.Hash, hashSum)
+				log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.RelativePath, fileInfo.Hash, hashSum)
 
 				if hashSum == fileInfo.Hash {
 					log.Debugf("[SKIP]same file skip , localPath: %s\n", localPath)
@@ -187,7 +187,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		defer file.Close()
 
 		q := url.Values{}
-		q.Set("file", fileInfo.Path)
+		q.Set("file", fileInfo.RelativePath)
 		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
 		if err != nil {
 			return err
@@ -216,13 +216,13 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 	}
 	files := clientFileInfo.Files
 	for _, file := range files {
-		if !in(file.Path, serverFileInfo.Files) {
-			if isInAllowDeleteDirs(file.Path) {
-				log.Debugf("will delete, file: %s\n", file.Path)
-				path := fmt.Sprintf("%s%s", baseDir, file.Path)
+		if !in(file.RelativePath, serverFileInfo.Files) {
+			if isInAllowDeleteDirs(file.RelativePath) {
+				log.Debugf("will delete, file: %s\n", file.RelativePath)
+				path := fmt.Sprintf("%s%s", baseDir, file.RelativePath)
 				err := os.RemoveAll(path)
 				if err != nil {
-					log.Warnf("delete file failed, err: %v, file: %s\n", err, file.Path)
+					log.Warnf("delete file failed, err: %v, file: %s\n", err, file.RelativePath)
 					return err
 				}
 				log.Debugf("[DELETE]delete, localPath: %s\n", path)
@@ -234,7 +234,7 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 
 func in(file string, files []*FileInfo) bool {
 	for _, f := range files {
-		if file == filepath.Clean(f.Path) {
+		if file == filepath.Clean(f.RelativePath) {
 			return true
 		}
 	}
@@ -282,9 +282,9 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 		var file *FileInfo
 		if info.IsDir() {
 			file = &FileInfo{
-				Path: pathRelative,
-				Type: TypeDir,
-				Hash: "",
+				RelativePath: pathRelative,
+				Type:         TypeDir,
+				Hash:         "",
 			}
 		} else {
 			f, err := os.Open(path)
@@ -300,9 +300,9 @@ func walkFun(files *[]*FileInfo, baseDir string) filepath.WalkFunc {
 			hashSum := fmt.Sprintf("%x", hashSumRaw)
 			log.Tracef("file: %s, hashSum: %s\n", path, hashSum)
 			file = &FileInfo{
-				Path: pathRelative,
-				Type: TypeFile,
-				Hash: hashSum,
+				RelativePath: pathRelative,
+				Type:         TypeFile,
+				Hash:         hashSum,
 			}
 		}
 		*files = append(*files, file)
