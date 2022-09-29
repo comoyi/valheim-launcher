@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/comoyi/valheim-launcher/log"
-	"github.com/comoyi/valheim-launcher/utils/fsutil"
+	"github.com/comoyi/valheim-launcher/util/fsutil"
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
