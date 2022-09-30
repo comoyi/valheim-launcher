@@ -15,6 +15,7 @@ import (
 	"github.com/comoyi/valheim-launcher/util/fsutil"
 	"github.com/comoyi/valheim-launcher/util/timeutil"
 	"github.com/spf13/viper"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -44,6 +45,51 @@ func initMainWindow() {
 	pathLabel := widget.NewLabel("Valheim文件夹")
 	pathInput := widget.NewLabel("")
 	pathInput.SetText(config.Conf.Dir)
+
+	var manualInputDialog dialog.Dialog
+	inputBtnText := "手动输入文件夹地址"
+	inputBtn := widget.NewButton(inputBtnText, func() {
+		pathManualInput := widget.NewEntry()
+		tipLabel := widget.NewLabel("")
+		box := container.NewVBox(pathManualInput, tipLabel)
+		manualInputDialog = dialog.NewCustomConfirm("请输入文件夹地址", "确定", "取消", box, func(b bool) {
+			if b {
+				if pathManualInput.Text == "" {
+					tipLabel.SetText("请输入文件夹地址")
+					manualInputDialog.Show()
+					return
+				}
+				path := filepath.Clean(pathManualInput.Text)
+				exists, err := fsutil.Exists(path)
+				if err != nil {
+					tipLabel.SetText("文件夹地址检测失败")
+					manualInputDialog.Show()
+					return
+				}
+				if !exists {
+					tipLabel.SetText("该文件夹不存在")
+					manualInputDialog.Show()
+					return
+				}
+				f, err := os.Stat(path)
+				if err != nil {
+					tipLabel.SetText("文件夹地址检测失败[2]")
+					manualInputDialog.Show()
+					return
+				}
+				if !f.IsDir() {
+					tipLabel.SetText("请输入正确的文件夹地址")
+					manualInputDialog.Show()
+					return
+				}
+
+				pathInput.SetText(path)
+				saveDirConfig(path)
+			}
+		}, w)
+		manualInputDialog.Resize(fyne.NewSize(700, 100))
+		manualInputDialog.Show()
+	})
 
 	selectBtnText := "手动选择文件夹"
 	selectBtn := widget.NewButton(selectBtnText, func() {
@@ -185,7 +231,8 @@ func initMainWindow() {
 	})
 
 	c.Add(pathLabel)
-	c2 := container.NewAdaptiveGrid(2)
+	c2 := container.NewAdaptiveGrid(3)
+	c2.Add(inputBtn)
 	c2.Add(selectBtn)
 	c2.Add(autoBtn)
 	c.Add(c2)
