@@ -31,6 +31,10 @@ func initUI() {
 	initMainWindow()
 
 	initMenu()
+
+	go func() {
+		autoCleanMsg()
+	}()
 }
 
 func initMainWindow() {
@@ -367,5 +371,16 @@ func saveDirConfig(path string) {
 	if err != nil {
 		log.Debugf("save config failed, err: %+v\n", err)
 		return
+	}
+}
+
+func autoCleanMsg() {
+	max := 10000
+	for {
+		<-time.After(300 * time.Second)
+		if len([]rune(msgContainer.Text)) > max {
+			msgContainer.Text = string([]rune(msgContainer.Text)[:max])
+			msgContainer.Refresh()
+		}
 	}
 }
