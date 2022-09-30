@@ -298,7 +298,7 @@ func initAnnouncement(c *fyne.Container) {
 		refreshAnnouncement(announcementContainer, announcementBox)
 		for {
 			select {
-			case <-time.After(10 * time.Second):
+			case <-time.After(60 * time.Second):
 				refreshAnnouncement(announcementContainer, announcementBox)
 			}
 		}
