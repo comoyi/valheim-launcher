@@ -22,3 +22,7 @@ func SumFile(path string) (string, error) {
 	hashSum := fmt.Sprintf("%x", h.Sum(nil))
 	return hashSum, nil
 }
+
+func SumString(str string) string {
+	return fmt.Sprintf("%x", md5.Sum([]byte(str)))
+}

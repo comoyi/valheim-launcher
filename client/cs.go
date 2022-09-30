@@ -29,4 +29,5 @@ type FileInfo struct {
 
 type Announcement struct {
 	Content string `json:"content"`
+	Hash    string `json:"hash"`
 }
