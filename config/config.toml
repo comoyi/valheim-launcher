@@ -1,11 +1,14 @@
 # 日志等级 TRACE DEBUG INFO WARN ERROR OFF
-debuglevel = "WARN"
+log_level = 'OFF'
 
 # 协议
-protocol = "http"
+protocol = 'http'
 
 # 服务器域名 / ip
-host = "127.0.0.1"
+host = '127.0.0.1'
 
 # 服务器端口
 port = 8080
+
+# 公告刷新间隔 （单位：秒） 0代表不刷新，只在启动时获取一次
+announcement_refresh_interval= 60

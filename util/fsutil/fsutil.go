@@ -1,13 +1,11 @@
-package fileutil
+package fsutil
 
 import (
 	"os"
 )
 
 func Exists(path string) (bool, error) {
-	var err error
-
-	_, err = os.Stat(path)
+	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil

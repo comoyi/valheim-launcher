@@ -2,18 +2,19 @@ package client
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
-	"github.com/comoyi/valheim-launcher/utils/fileutil"
+	"github.com/comoyi/valheim-launcher/util/cryptoutil/md5util"
+	"github.com/comoyi/valheim-launcher/util/fsutil"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"time"
+	"strings"
 )
 
 type UpdateInfo struct {
@@ -21,39 +22,49 @@ type UpdateInfo struct {
 	Total   int
 }
 
-func (u *UpdateInfo) GetRatio() float64 {
-	return float64(u.Current) / float64(u.Total)
-}
+var UpdateInf *UpdateInfo = &UpdateInfo{}
 
-var UpdateInf *UpdateInfo
+var errServerScanning = fmt.Errorf("服务器正在刷新文件列表，请稍后再试")
 
-func init() {
-	UpdateInf = &UpdateInfo{}
-}
-
-func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
+func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) error {
 	log.Infof("baseDir: %v\n", baseDir)
 
 	if baseDir == "" {
 		log.Warnf("未选择文件夹\n")
-		return
+		return fmt.Errorf("invalid base dir")
 	}
 
-	resp, err := http.Get(getFullUrl("/files"))
+	j, err := httpGet(getFullUrl("/files"))
 	if err != nil {
 		log.Debugf("request failed, err: %v\n", err)
-		return
+		addMsgWithTime("从服务器获取文件列表失败")
+		return err
 	}
-	j, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Debugf("read file failed, err: %v\n", err)
-		return
-	}
-	var serverFileInfo ServerFileInfo
-	err = json.Unmarshal(j, &serverFileInfo)
+	var serverFileInfo *ServerFileInfo
+	err = json.Unmarshal([]byte(j), &serverFileInfo)
 	if err != nil {
 		log.Debugf("json.Unmarshal failed, err: %v\n", err)
-		return
+		return err
+	}
+
+	scanStatus := serverFileInfo.ScanStatus
+	if scanStatus != ScanStatusCompleted {
+		if scanStatus == ScanStatusScanning {
+			//msg := "服务器正在刷新文件列表，请稍后再试"
+			//addMsgWithTime(msg)
+			return errServerScanning
+		} else if scanStatus == ScanStatusFailed {
+			msg := "服务器刷新文件列表失败"
+			addMsgWithTime(msg)
+			return fmt.Errorf(msg)
+		} else if scanStatus == ScanStatusWait {
+			msg := "等待服务器刷新文件列表，请稍后再试"
+			addMsgWithTime(msg)
+			return fmt.Errorf(msg)
+		}
+		msg := "服务器异常，请稍后再试"
+		addMsgWithTime(msg)
+		return fmt.Errorf(msg)
 	}
 
 	serverFiles := serverFileInfo.Files
@@ -68,80 +79,107 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) {
 		syncChan <- file
 	}
 
+syncFile:
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		default:
 			select {
 			case f := <-syncChan:
 				err := syncFile(f, baseDir)
 				if err != nil {
 					log.Debugf("sync file failed, fileInfo: %+v, err: %s\n", f, err)
-					return
+					return err
 				}
 				UpdateInf.Current += 1
 				go func() {
 					progressChan <- struct{}{}
 				}()
 			default:
-				return
+				break syncFile
 			}
 		}
 	}
+
+	err = deleteFiles(serverFileInfo, baseDir)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func syncFile(fileInfo *FileInfo, baseDir string) error {
 	var err error
 	log.Debugf("syncing file info %+v\n", fileInfo)
-	<-time.After(100 * time.Millisecond)
 
-	localPathRaw := fmt.Sprintf("%s%s", baseDir, fileInfo.Path)
-	localPath := filepath.Clean(localPathRaw)
-	log.Debugf("serverPath: %s, localPathRaw: %s, localPath: %s\n", fileInfo.Path, localPathRaw, localPath)
+	localPath := filepath.Join(baseDir, fileInfo.RelativePath)
+	log.Debugf("serverRelativePath: %s, localPath: %s\n", fileInfo.RelativePath, localPath)
 
-	isExist, err := fileutil.Exists(localPath)
+	isExist, err := fsutil.Exists(localPath)
 	if err != nil {
 		return err
 	}
 
 	if fileInfo.Type == TypeDir {
 		if isExist {
-			return nil
+			fi, err := os.Stat(localPath)
+			if err != nil {
+				return err
+			}
+			if fi.IsDir() {
+				log.Debugf("[SKIP]same dir skip , localPath: %s\n", localPath)
+				return nil
+			} else {
+				log.Debugf("[DELETE]expected a dir but a file, delete it, localPath: %s\n", localPath)
+				err := os.RemoveAll(localPath)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		err = os.MkdirAll(localPath, os.ModePerm)
 		if err != nil {
-			log.Warnf("os.Mkdir failed, err: %v\n", err)
 			return err
 		}
 	} else {
 		if isExist {
-			f, err := os.Open(localPath)
+			fi, err := os.Stat(localPath)
 			if err != nil {
 				return err
 			}
-			bytes, err := io.ReadAll(f)
-			if err != nil {
-				return err
-			}
-			hashSumRaw := md5.Sum(bytes)
-			hashSum := fmt.Sprintf("%x", hashSumRaw)
-			log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.Path, fileInfo.Hash, hashSum)
+			if fi.IsDir() {
+				log.Debugf("[DELETE]expected a file but a dir, delete it, localPath: %s\n", localPath)
+				err := os.RemoveAll(localPath)
+				if err != nil {
+					return err
+				}
+			} else {
+				hashSum, err := md5util.SumFile(localPath)
+				if err != nil {
+					return err
+				}
+				log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.RelativePath, fileInfo.Hash, hashSum)
 
-			if hashSum == fileInfo.Hash {
-				log.Debugf("same file skip , localPath: %s\n", localPath)
-				return nil
+				if hashSum == fileInfo.Hash {
+					log.Debugf("[SKIP]same file skip , localPath: %s\n", localPath)
+					return nil
+				}
 			}
 		}
-		//log.Debugf("remove local file, localPath: %s\n", localPath)
-		//err = os.Remove(localPath)
-		//if err != nil {
-		//	return err
-		//}
+
+		q := url.Values{}
+		q.Set("file", fileInfo.RelativePath)
+		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
 		localDir := filepath.Dir(localPath)
 		err = os.MkdirAll(localDir, os.ModePerm)
 		if err != nil {
-			log.Warnf("os.Mkdir failed, err: %v\n", err)
 			return err
 		}
 
@@ -151,22 +189,140 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 		defer file.Close()
 
-		q := url.Values{}
-		q.Set("file", fileInfo.Path)
-		fmt.Println(q.Encode())
-		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
-		if err != nil {
-			return err
-		}
 		_, err = io.Copy(file, resp.Body)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Debugf("[OK]synced file info %+v\n", fileInfo)
+	log.Debugf("[SYNC]synced file info %+v\n", fileInfo)
 
 	return nil
+}
+
+type ClientFileInfo struct {
+	Files []*FileInfo `json:"files"`
+}
+
+func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
+	clientFileInfo, err := getClientFileInfoWithoutHash(baseDir)
+	if err != nil {
+		log.Warnf("getClientFileInfo failed, err: %v\n", err)
+		return err
+	}
+	files := clientFileInfo.Files
+	for _, file := range files {
+		if !in(file.RelativePath, serverFileInfo.Files) {
+			if isInAllowDeleteDirs(file.RelativePath) {
+				path := filepath.Join(baseDir, file.RelativePath)
+				err := os.RemoveAll(path)
+				if err != nil {
+					log.Warnf("delete file failed, err: %v, file: %s\n", err, file.RelativePath)
+					return err
+				}
+				log.Debugf("[DELETE]delete, localPath: %s\n", path)
+			}
+		}
+	}
+	return nil
+}
+
+func in(file string, files []*FileInfo) bool {
+	for _, f := range files {
+		if file == filepath.Clean(f.RelativePath) {
+			return true
+		}
+	}
+	return false
+}
+
+func isInAllowDeleteDirs(relativePath string) bool {
+	allowDeleteDirs := make([]string, 0)
+	allowDeleteDirs = append(allowDeleteDirs, "BepInEx")
+	allowDeleteDirs = append(allowDeleteDirs, "doorstop_libs")
+	allowDeleteDirs = append(allowDeleteDirs, "unstripped_corlib")
+	for _, dir := range allowDeleteDirs {
+		if strings.HasPrefix(relativePath, dir) {
+			return true
+		}
+	}
+	return false
+}
+
+func getClientFileInfoWithoutHash(baseDir string) (*ClientFileInfo, error) {
+	return doGetClientFileInfo(baseDir, false)
+}
+
+func getClientFileInfo(baseDir string) (*ClientFileInfo, error) {
+	return doGetClientFileInfo(baseDir, true)
+}
+
+func doGetClientFileInfo(baseDir string, isHash bool) (*ClientFileInfo, error) {
+	var clientFileInfo = &ClientFileInfo{}
+
+	files := make([]*FileInfo, 0)
+
+	err := filepath.Walk(baseDir, walkFun(&files, baseDir, isHash))
+	if err != nil {
+		log.Debugf("refresh files info failed\n")
+		return nil, err
+	}
+
+	clientFileInfo.Files = files
+	return clientFileInfo, nil
+}
+
+func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc {
+	return func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == baseDir {
+			return nil
+		}
+		if !strings.HasPrefix(path, baseDir) {
+			log.Warnf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
+			return fmt.Errorf("path not expected, baseDir: %s, path: %s\n", baseDir, path)
+		}
+		relativePath, err := filepath.Rel(baseDir, path)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(relativePath, ".") {
+			return fmt.Errorf("relativePath not expected, baseDir: %s, path: %s, relativePath: %s\n", baseDir, path, relativePath)
+		}
+		if relativePath == "" {
+			return nil
+		}
+		var file *FileInfo
+		if info.IsDir() {
+			log.Tracef("dir:  %s\n", relativePath)
+			file = &FileInfo{
+				RelativePath: relativePath,
+				Type:         TypeDir,
+				Hash:         "",
+			}
+		} else {
+			var hashSum string
+			if isHash {
+				var err error
+				hashSum, err = md5util.SumFile(path)
+				if err != nil {
+					return err
+				}
+				log.Tracef("file: %s, hashSum: %s\n", relativePath, hashSum)
+			} else {
+				log.Tracef("file: %s\n", relativePath)
+			}
+			file = &FileInfo{
+				RelativePath: relativePath,
+				Type:         TypeFile,
+				Hash:         hashSum,
+			}
+		}
+		*files = append(*files, file)
+		return nil
+	}
 }
 
 func getFullUrl(path string) string {
@@ -178,4 +334,16 @@ func getFullUrl(path string) string {
 	port := config.Conf.Port
 	u := fmt.Sprintf("%s://%s:%d%s", protocol, host, port, path)
 	return u
+}
+
+func httpGet(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	j, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(j), nil
 }
