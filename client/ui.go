@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	theme2 "fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
@@ -46,52 +47,7 @@ func initMainWindow() {
 	pathInput := widget.NewLabel("")
 	pathInput.SetText(config.Conf.Dir)
 
-	var manualInputDialog dialog.Dialog
-	inputBtnText := "手动输入文件夹地址"
-	inputBtn := widget.NewButton(inputBtnText, func() {
-		pathManualInput := widget.NewEntry()
-		tipLabel := widget.NewLabel("")
-		box := container.NewVBox(pathManualInput, tipLabel)
-		manualInputDialog = dialog.NewCustomConfirm("请输入文件夹地址", "确定", "取消", box, func(b bool) {
-			if b {
-				if pathManualInput.Text == "" {
-					tipLabel.SetText("请输入文件夹地址")
-					manualInputDialog.Show()
-					return
-				}
-				path := filepath.Clean(pathManualInput.Text)
-				exists, err := fsutil.Exists(path)
-				if err != nil {
-					tipLabel.SetText("文件夹地址检测失败")
-					manualInputDialog.Show()
-					return
-				}
-				if !exists {
-					tipLabel.SetText("该文件夹不存在")
-					manualInputDialog.Show()
-					return
-				}
-				f, err := os.Stat(path)
-				if err != nil {
-					tipLabel.SetText("文件夹地址检测失败[2]")
-					manualInputDialog.Show()
-					return
-				}
-				if !f.IsDir() {
-					tipLabel.SetText("请输入正确的文件夹地址")
-					manualInputDialog.Show()
-					return
-				}
-
-				pathInput.SetText(path)
-				saveDirConfig(path)
-			}
-		}, w)
-		manualInputDialog.Resize(fyne.NewSize(700, 100))
-		manualInputDialog.Show()
-	})
-
-	selectBtnText := "手动选择文件夹"
+	selectBtnText := "选择文件夹"
 	selectBtn := widget.NewButton(selectBtnText, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil {
@@ -112,6 +68,7 @@ func initMainWindow() {
 			}, w).Show()
 		}, w)
 	})
+	selectBtn.SetIcon(theme2.FolderIcon())
 
 	autoBtnText := "自动查找文件夹"
 	autoBtn := widget.NewButton(autoBtnText, func() {
@@ -137,6 +94,7 @@ func initMainWindow() {
 			dialogutil.ShowInformation("", "未找到相关文件夹，请手动选择", w)
 		}
 	})
+	autoBtn.SetIcon(theme2.SearchIcon())
 
 	progressBar := widget.NewProgressBar()
 	progressBar.Hide()
@@ -229,10 +187,11 @@ func initMainWindow() {
 		}(ctx)
 
 	})
+	updateBtn.SetIcon(theme2.ViewRefreshIcon())
 
 	c.Add(pathLabel)
 	c2 := container.NewAdaptiveGrid(3)
-	c2.Add(inputBtn)
+	initManualInputBtn(c2, pathInput)
 	c2.Add(selectBtn)
 	c2.Add(autoBtn)
 	c.Add(c2)
@@ -272,6 +231,56 @@ func initMenu() {
 	helpMenu := fyne.NewMenu("帮助", helpMenuItem)
 	mainMenu := fyne.NewMainMenu(firstMenu, helpMenu)
 	w.SetMainMenu(mainMenu)
+}
+
+func initManualInputBtn(c *fyne.Container, pathInput *widget.Label) {
+	var manualInputDialog dialog.Dialog
+	inputBtnText := "手动输入文件夹地址"
+	inputBtn := widget.NewButton(inputBtnText, func() {
+		manualPathInput := widget.NewEntry()
+		tipLabel := widget.NewLabel("")
+		box := container.NewVBox(manualPathInput, tipLabel)
+		manualInputDialog = dialog.NewCustomConfirm("请输入文件夹地址", "确定", "取消", box, func(b bool) {
+			if b {
+				if manualPathInput.Text == "" {
+					tipLabel.SetText("请输入文件夹地址")
+					manualInputDialog.Show()
+					return
+				}
+				path := filepath.Clean(manualPathInput.Text)
+				exists, err := fsutil.Exists(path)
+				if err != nil {
+					tipLabel.SetText("文件夹地址检测失败")
+					manualInputDialog.Show()
+					return
+				}
+				if !exists {
+					tipLabel.SetText("该文件夹不存在")
+					manualInputDialog.Show()
+					return
+				}
+				f, err := os.Stat(path)
+				if err != nil {
+					tipLabel.SetText("文件夹地址检测失败[2]")
+					manualInputDialog.Show()
+					return
+				}
+				if !f.IsDir() {
+					tipLabel.SetText("请输入正确的文件夹地址")
+					manualInputDialog.Show()
+					return
+				}
+
+				pathInput.SetText(path)
+				saveDirConfig(path)
+			}
+		}, w)
+		manualInputDialog.Resize(fyne.NewSize(700, 100))
+		manualInputDialog.Show()
+	})
+	inputBtn.SetIcon(theme2.DocumentCreateIcon())
+
+	c.Add(inputBtn)
 }
 
 func initAnnouncement(c *fyne.Container) {
