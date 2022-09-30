@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"github.com/comoyi/valheim-launcher/log"
-	"github.com/comoyi/valheim-launcher/util/cryptoutil/md5util"
 	"net/url"
 )
 
@@ -59,9 +58,8 @@ func getAnnouncement() (*Announcement, error) {
 func fetchAnnouncement() (string, error) {
 	finalUrl := ""
 	if announcementContent != "" {
-		hash := md5util.SumString(announcementContent)
 		q := url.Values{}
-		q.Set("hash", hash)
+		q.Set("hash", announcementHash)
 		finalUrl = fmt.Sprintf("%s%s", getFullUrl("/announcement"), "?"+q.Encode())
 	} else {
 		finalUrl = getFullUrl("/announcement")
