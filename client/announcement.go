@@ -9,8 +9,10 @@ import (
 	"net/url"
 )
 
-var announcementContent string
-var announcementHash = ""
+var ann = &Announcement{
+	Content: "",
+	Hash:    "",
+}
 
 func refreshAnnouncement(w *widget.Label, box *fyne.Container) {
 	announcement, err := getAnnouncement()
@@ -21,16 +23,16 @@ func refreshAnnouncement(w *widget.Label, box *fyne.Container) {
 	content := ""
 	if announcement.Content != "" {
 		content = announcement.Content
-		announcementHash = announcement.Hash
+		ann.Hash = announcement.Hash
 	} else {
 		if announcement.Hash != "" {
-			if announcementHash == announcement.Hash {
-				content = announcementContent
+			if ann.Hash == announcement.Hash {
+				content = ann.Content
 			}
 		}
 	}
 
-	announcementContent = content
+	ann.Content = content
 
 	if content == "" {
 		box.Hide()
@@ -57,9 +59,9 @@ func getAnnouncement() (*Announcement, error) {
 
 func fetchAnnouncement() (string, error) {
 	finalUrl := ""
-	if announcementContent != "" {
+	if ann.Content != "" {
 		q := url.Values{}
-		q.Set("hash", announcementHash)
+		q.Set("hash", ann.Hash)
 		finalUrl = fmt.Sprintf("%s%s", getFullUrl("/announcement"), "?"+q.Encode())
 	} else {
 		finalUrl = getFullUrl("/announcement")
