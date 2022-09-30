@@ -296,10 +296,13 @@ func initAnnouncement(c *fyne.Container) {
 
 	go func() {
 		refreshAnnouncement(announcementContainer, announcementBox)
-		for {
-			select {
-			case <-time.After(60 * time.Second):
-				refreshAnnouncement(announcementContainer, announcementBox)
+		interval := config.Conf.AnnouncementRefreshInterval
+		if interval > 0 {
+			for {
+				select {
+				case <-time.After(time.Duration(interval) * time.Second):
+					refreshAnnouncement(announcementContainer, announcementBox)
+				}
 			}
 		}
 	}()

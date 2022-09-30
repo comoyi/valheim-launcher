@@ -13,11 +13,12 @@ import (
 var Conf Config
 
 type Config struct {
-	LogLevel string `toml:"log_level" mapstructure:"log_level"`
-	Protocol string `toml:"protocol" mapstructure:"protocol"`
-	Host     string `toml:"host" mapstructure:"host"`
-	Port     int    `toml:"port" mapstructure:"port"`
-	Dir      string `toml:"dir" mapstructure:"dir"`
+	LogLevel                    string `toml:"log_level" mapstructure:"log_level"`
+	Protocol                    string `toml:"protocol" mapstructure:"protocol"`
+	Host                        string `toml:"host" mapstructure:"host"`
+	Port                        int    `toml:"port" mapstructure:"port"`
+	Dir                         string `toml:"dir" mapstructure:"dir"`
+	AnnouncementRefreshInterval int64  `toml:"announcement_refresh_interval" mapstructure:"announcement_refresh_interval"`
 }
 
 func initDefaultConfig() {
@@ -26,6 +27,7 @@ func initDefaultConfig() {
 	viper.SetDefault("host", "127.0.0.1")
 	viper.SetDefault("port", 8080)
 	viper.SetDefault("dir", "")
+	viper.SetDefault("announcement_refresh_interval", 60)
 }
 
 func LoadConfig() {
