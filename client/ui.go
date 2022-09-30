@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -134,40 +135,66 @@ func initMainWindow() {
 		progressBar.SetValue(0)
 		progressBar.Show()
 
-		progressChan := make(chan struct{}, 10)
+		progressChan := make(chan struct{}, 100)
 
 		var ctx context.Context
 		ctx, cancel = context.WithCancel(ctxParent)
 
 		go func(ctx context.Context) {
+			var err error
+			maxTimes := 3
+			triedTimes := 0
+		bf:
 			for {
 				select {
 				case <-ctx.Done():
-					return
+					log.Debugf("cancelled\n")
+					break bf
 				default:
-					err := update(ctx, baseDir, progressChan)
-					if err != nil {
-						dialogutil.ShowInformation("提示", "更新失败", w)
-						addMsgWithTime("更新失败")
-						log.Debugf("update failed, err: %v\n", err)
-					} else {
-						if isUpdating {
-							endTime := time.Now().Unix()
-							duration := endTime - startTime
-							addMsgWithTime(fmt.Sprintf("更新完成，耗时：%s", timeutil.FormatDuration(duration)))
-						}
+					if triedTimes >= maxTimes {
+						log.Debugf("reach max retry times, triedTimes: %d, maxTimes: %d\n", triedTimes, maxTimes)
+						break bf
 					}
+					triedTimes++
+					err = update(ctx, baseDir, progressChan)
+					if err != nil {
+						if !errors.Is(err, errServerScanning) {
+							log.Debugf("not errServerScanning\n")
+							break bf
+						} else {
+							addMsgWithTime("服务器正在刷新文件列表，等待重试...")
+							select {
+							case <-ctx.Done():
+								break bf
+							case <-time.After(3 * time.Second):
 
-					// refresh progress bar
-					refreshProgressbar(progressBar)
-
-					isUpdating = false
-					updateBtn.SetText("更新")
-					cancel()
-
-					return
+							}
+						}
+					} else {
+						break bf
+					}
 				}
 			}
+			if err != nil {
+				if isUpdating {
+					dialogutil.ShowInformation("提示", "更新失败", w)
+					addMsgWithTime("更新失败")
+					log.Debugf("update failed, err: %v\n", err)
+				}
+			} else {
+				if isUpdating {
+					endTime := time.Now().Unix()
+					duration := endTime - startTime
+					addMsgWithTime(fmt.Sprintf("更新完成，耗时：%s", timeutil.FormatDuration(duration)))
+				}
+			}
+
+			// refresh progress bar
+			refreshProgressbar(progressBar)
+
+			isUpdating = false
+			updateBtn.SetText("更新")
+			cancel()
 		}(ctx)
 
 		go func(ctx context.Context) {

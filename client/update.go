@@ -24,6 +24,8 @@ type UpdateInfo struct {
 
 var UpdateInf *UpdateInfo = &UpdateInfo{}
 
+var errServerScanning = fmt.Errorf("服务器正在刷新文件列表，请稍后再试")
+
 func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) error {
 	log.Infof("baseDir: %v\n", baseDir)
 
@@ -48,9 +50,9 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 	scanStatus := serverFileInfo.ScanStatus
 	if scanStatus != ScanStatusCompleted {
 		if scanStatus == ScanStatusScanning {
-			msg := "服务器正在刷新文件列表，请稍后再试"
-			addMsgWithTime(msg)
-			return fmt.Errorf(msg)
+			//msg := "服务器正在刷新文件列表，请稍后再试"
+			//addMsgWithTime(msg)
+			return errServerScanning
 		} else if scanStatus == ScanStatusFailed {
 			msg := "服务器刷新文件列表失败"
 			addMsgWithTime(msg)
