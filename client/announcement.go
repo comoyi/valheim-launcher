@@ -18,6 +18,7 @@ func refreshAnnouncement(w *widget.Label, box *fyne.Container) {
 	announcement, err := getAnnouncement()
 	if err != nil || announcement == nil {
 		box.Hide()
+		box.Refresh()
 		return
 	}
 	content := ""
@@ -36,9 +37,11 @@ func refreshAnnouncement(w *widget.Label, box *fyne.Container) {
 
 	if content == "" {
 		box.Hide()
+		box.Refresh()
 	} else {
 		w.SetText(content)
 		box.Show()
+		box.Refresh()
 	}
 }
 
