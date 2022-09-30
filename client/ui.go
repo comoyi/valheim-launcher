@@ -148,8 +148,7 @@ func initMainWindow() {
 			for {
 				select {
 				case <-ctx.Done():
-					log.Debugf("cancelled\n")
-					break bf
+					return
 				default:
 					if triedTimes >= maxTimes {
 						log.Debugf("reach max retry times, triedTimes: %d, maxTimes: %d\n", triedTimes, maxTimes)
@@ -165,7 +164,7 @@ func initMainWindow() {
 							addMsgWithTime("服务器正在刷新文件列表，等待重试...")
 							select {
 							case <-ctx.Done():
-								break bf
+								return
 							case <-time.After(3 * time.Second):
 
 							}
