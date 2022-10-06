@@ -18,7 +18,9 @@ import (
 	"github.com/comoyi/valheim-launcher/util/timeutil"
 	"github.com/spf13/viper"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -228,8 +230,10 @@ func initMainWindow() {
 	c3 := container.NewAdaptiveGrid(1)
 	c3.Add(pathInput)
 	c.Add(c3)
-	c4 := container.NewAdaptiveGrid(1)
+	startBtn := initStartBtn()
+	c4 := container.NewAdaptiveGrid(2)
 	c4.Add(updateBtn)
+	c4.Add(startBtn)
 	c.Add(c4)
 	c5 := container.NewAdaptiveGrid(1)
 	c5.Add(progressBar)
@@ -311,6 +315,25 @@ func initManualInputBtn(c *fyne.Container, pathInput *widget.Label) {
 	inputBtn.SetIcon(theme2.DocumentCreateIcon())
 
 	c.Add(inputBtn)
+}
+
+func initStartBtn() *widget.Button {
+	var btn *widget.Button
+	btn = widget.NewButton("启动", func() {
+		if runtime.GOOS != "windows" {
+			dialogutil.ShowInformation("", "当前只支持Windows", w)
+			return
+		}
+		cmd := exec.Command("cmd", "/C", "start", "/B", "steam://rungameid/892970")
+		err := cmd.Start()
+		if err != nil {
+			log.Infof("Start failed, err: %v\n", err)
+			addMsgWithTime("启动失败，请通过其他方式启动")
+			return
+		}
+	})
+	btn.SetIcon(theme2.MediaPlayIcon())
+	return btn
 }
 
 func initAnnouncement(c *fyne.Container) {
