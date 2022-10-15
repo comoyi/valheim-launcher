@@ -14,11 +14,11 @@ var ann = &Announcement{
 	Hash:    "",
 }
 
-func refreshAnnouncement(w *widget.Label, box *fyne.Container) {
+func refreshAnnouncement(w *widget.Label, box *fyne.Container, c *fyne.Container) {
 	announcement, err := getAnnouncement()
 	if err != nil || announcement == nil {
 		box.Hide()
-		box.Refresh()
+		c.Refresh()
 		return
 	}
 	content := ""
@@ -37,11 +37,11 @@ func refreshAnnouncement(w *widget.Label, box *fyne.Container) {
 
 	if content == "" {
 		box.Hide()
-		box.Refresh()
+		c.Refresh()
 	} else {
 		w.SetText(content)
 		box.Show()
-		box.Refresh()
+		c.Refresh()
 	}
 }
 

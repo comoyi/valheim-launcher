@@ -16,6 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Set env
+        run: |
+          echo "X_APP_VERSION=`cat VERSION`" >> $GITHUB_ENV
+
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
@@ -68,9 +72,9 @@ jobs:
       - name: Upload Linux package
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.X_APP_NAME }}-linux
-          path: target/linux/${{ env.X_APP_NAME }}-linux.tar.gz
-          retention-days: 3
+          name: ${{ env.X_APP_NAME }}-${{ env.X_APP_VERSION }}-linux
+          path: target/linux/${{ env.X_APP_NAME }}-${{ env.X_APP_VERSION }}-linux.tar.gz
+          retention-days: 2
           if-no-files-found: error
 
       - name: Package Linux Installer
@@ -79,9 +83,9 @@ jobs:
       - name: Upload Linux installer package
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.X_APP_NAME }}-linux-installer
-          path: target/linux/${{ env.X_APP_NAME }}.tar.xz
-          retention-days: 3
+          name: ${{ env.X_APP_NAME }}-${{ env.X_APP_VERSION }}-linux-installer
+          path: target/linux/${{ env.X_APP_NAME }}-${{ env.X_APP_VERSION }}-linux-installer.tar.xz
+          retention-days: 2
           if-no-files-found: error
 
       - name: Package Windows
@@ -90,7 +94,7 @@ jobs:
       - name: Upload Window package
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.X_APP_NAME }}-windows
-          path: target/windows/${{ env.X_APP_NAME }}-windows.zip
-          retention-days: 3
+          name: ${{ env.X_APP_NAME }}-${{ env.X_APP_VERSION }}-windows
+          path: target/windows/${{ env.X_APP_NAME }}-${{ env.X_APP_VERSION }}-windows.zip
+          retention-days: 2
           if-no-files-found: error

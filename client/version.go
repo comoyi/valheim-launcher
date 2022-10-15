@@ -1,6 +1,6 @@
 package client
 
-var versionText = "1.0.1"
+var versionText = "1.0.2"
 
 //var versionNo = 101
 //
