@@ -200,6 +200,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 			}
 			defer resp.Body.Close()
 			srcFile = resp.Body
+			defer srcFile.Close()
 
 			syncTypeInfo = "[FROM_SERVER]"
 		}
