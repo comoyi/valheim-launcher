@@ -19,6 +19,8 @@ type Config struct {
 	Port                        int    `toml:"port" mapstructure:"port"`
 	Dir                         string `toml:"dir" mapstructure:"dir"`
 	AnnouncementRefreshInterval int64  `toml:"announcement_refresh_interval" mapstructure:"announcement_refresh_interval"`
+	IsUseCache                  bool   `toml:"is_use_cache" mapstructure:"is_use_cache"`
+	CacheDir                    string `toml:"cache_dir" mapstructure:"cache_dir"`
 }
 
 func initDefaultConfig() {
@@ -28,6 +30,8 @@ func initDefaultConfig() {
 	viper.SetDefault("port", 8080)
 	viper.SetDefault("dir", "")
 	viper.SetDefault("announcement_refresh_interval", 60)
+	viper.SetDefault("is_use_cache", true)
+	viper.SetDefault("cache_dir", ".cache")
 }
 
 func LoadConfig() {

@@ -122,6 +122,8 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		return err
 	}
 
+	syncTypeInfo := ""
+
 	if fileInfo.Type == TypeDir {
 		if isExist {
 			fi, err := os.Stat(localPath)
@@ -143,6 +145,8 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		if err != nil {
 			return err
 		}
+
+		syncTypeInfo = "[FROM_LOCAL]"
 	} else {
 		if isExist {
 			fi, err := os.Stat(localPath)
@@ -169,13 +173,37 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 			}
 		}
 
-		q := url.Values{}
-		q.Set("file", fileInfo.RelativePath)
-		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
-		if err != nil {
-			return err
+		var srcFile io.ReadCloser
+		isCacheHit := false
+		cachePath := ""
+		if config.Conf.IsUseCache {
+			isCacheHit, cachePath, _ = checkCache(fileInfo)
 		}
-		defer resp.Body.Close()
+
+		isFinallyUseCache := false
+		if isCacheHit {
+			srcFile, err = os.Open(cachePath)
+			if err != nil {
+				return err
+			}
+			defer srcFile.Close()
+			isFinallyUseCache = true
+
+			syncTypeInfo = "[FROM_CACHE]"
+		}
+		if !isFinallyUseCache {
+			q := url.Values{}
+			q.Set("file", fileInfo.RelativePath)
+			resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			srcFile = resp.Body
+			defer srcFile.Close()
+
+			syncTypeInfo = "[FROM_SERVER]"
+		}
 
 		localDir := filepath.Dir(localPath)
 		err = os.MkdirAll(localDir, os.ModePerm)
@@ -189,13 +217,13 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 		defer file.Close()
 
-		_, err = io.Copy(file, resp.Body)
+		_, err = io.Copy(file, srcFile)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Debugf("[SYNC]synced file info %+v\n", fileInfo)
+	log.Debugf("[SYNC]%ssynced file info %+v\n", syncTypeInfo, fileInfo)
 
 	return nil
 }
@@ -346,4 +374,42 @@ func httpGet(url string) (string, error) {
 		return "", err
 	}
 	return string(j), nil
+}
+
+func checkCache(fileInfo *FileInfo) (bool, string, error) {
+	cacheDir := config.Conf.CacheDir
+	cachePath := ""
+
+	cacheDirPath, err := filepath.Abs(cacheDir)
+	if err != nil {
+		log.Debugf("get cache dir absolute path failed, cache dir: %s, err: %v\n", cacheDir, err)
+		return false, cachePath, err
+	}
+	cachePath = filepath.Join(cacheDirPath, fileInfo.RelativePath)
+	log.Debugf("cache dir: %s, cache path: %s\n", cacheDir, cachePath)
+	isCacheExist, err := fsutil.Exists(cachePath)
+	if err != nil {
+		log.Debugf("check file is exists failed, cachePath: %s, err: %v\n", cachePath, err)
+		return false, cachePath, err
+	}
+	if isCacheExist {
+		cfi, err := os.Stat(cachePath)
+		if err != nil {
+			log.Debugf("get file info failed, cachePath: %s, err: %v\n", cachePath, err)
+			return false, cachePath, err
+		}
+		if !cfi.IsDir() {
+			hashSum, err := md5util.SumFile(cachePath)
+			if err != nil {
+				log.Debugf("get file hash failed, cachePath: %s, err: %v\n", cachePath, err)
+				return false, cachePath, err
+			}
+			log.Debugf("cache path: %s, serverHashSum: %s, cache hashSum: %s\n", cachePath, fileInfo.Hash, hashSum)
+			if hashSum == fileInfo.Hash {
+				log.Debugf("[CACHE_HIT]cache hit , cachePath: %s\n", cachePath)
+				return true, cachePath, nil
+			}
+		}
+	}
+	return false, cachePath, nil
 }
