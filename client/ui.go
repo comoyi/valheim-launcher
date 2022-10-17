@@ -50,7 +50,7 @@ func initMainWindow() {
 	c = container.NewVBox()
 	w.SetContent(c)
 
-	useStepLabel := widget.NewLabel("【使用步骤】第一步：选文件夹，第二步：更新MOD，第三步：启动英灵神殿\n【注意】更新MOD前请先关闭英灵神殿")
+	useStepLabel := widget.NewLabel("【使用步骤】第一步：选文件夹，第二步：更新MOD，第三步：启动英灵神殿\n【注意】更新MOD前请先关闭英灵神殿\n")
 	pathLabel := widget.NewLabel("英灵神殿所在文件夹，以下3种方式任选一种，推荐自动查找")
 	pathInput := widget.NewLabel("")
 	pathInput.SetText(config.Conf.Dir)
