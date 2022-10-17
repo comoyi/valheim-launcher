@@ -1,6 +1,12 @@
 # 日志等级 TRACE DEBUG INFO WARN ERROR OFF
 log_level = 'OFF'
 
+# 缓存文件夹路径
+cache_dir = '.cache'
+
+# 是否启用缓存
+is_use_cache = true
+
 # 协议
 protocol = 'http'
 
