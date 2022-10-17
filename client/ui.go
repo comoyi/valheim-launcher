@@ -46,11 +46,12 @@ func initMainWindow() {
 	myApp.Settings().SetTheme(theme.CustomTheme)
 	w = myApp.NewWindow(windowTitle)
 	w.SetMaster()
-	w.Resize(fyne.NewSize(800, 600))
+	w.Resize(fyne.NewSize(800, 800))
 	c = container.NewVBox()
 	w.SetContent(c)
 
-	pathLabel := widget.NewLabel("Valheim文件夹")
+	useStepLabel := widget.NewLabel("【使用步骤】第一步：选文件夹，第二步：更新MOD，第三步：启动英灵神殿\n【注意】更新MOD前请先关闭英灵神殿\n")
+	pathLabel := widget.NewLabel("英灵神殿所在文件夹，以下3种方式任选一种，推荐自动查找")
 	pathInput := widget.NewLabel("")
 	pathInput.SetText(config.Conf.Dir)
 
@@ -115,7 +116,7 @@ func initMainWindow() {
 	ctxParent := context.Background()
 	var cancel context.CancelFunc
 	isUpdating := false
-	updateBtnText := "更新"
+	updateBtnText := "更新MOD"
 	updateBtn = widget.NewButton(updateBtnText, func() {
 		baseDir := pathInput.Text
 		if baseDir == "" {
@@ -127,7 +128,7 @@ func initMainWindow() {
 		if isUpdating {
 			addMsgWithTime("取消更新")
 			isUpdating = false
-			updateBtn.SetText("更新")
+			updateBtn.SetText(updateBtnText)
 			cancel()
 			return
 		}
@@ -198,7 +199,7 @@ func initMainWindow() {
 			refreshProgressbar(progressBar)
 
 			isUpdating = false
-			updateBtn.SetText("更新")
+			updateBtn.SetText(updateBtnText)
 			cancel()
 		}(ctx)
 
@@ -221,6 +222,7 @@ func initMainWindow() {
 	})
 	updateBtn.SetIcon(theme2.ViewRefreshIcon())
 
+	c.Add(useStepLabel)
 	c.Add(pathLabel)
 	c2 := container.NewAdaptiveGrid(3)
 	initManualInputBtn(c2, pathInput)
@@ -319,7 +321,7 @@ func initManualInputBtn(c *fyne.Container, pathInput *widget.Label) {
 
 func initStartBtn() *widget.Button {
 	var btn *widget.Button
-	btn = widget.NewButton("启动", func() {
+	btn = widget.NewButton("启动英灵神殿", func() {
 		if runtime.GOOS != "windows" {
 			dialogutil.ShowInformation("", "当前只支持Windows", w)
 			return
@@ -341,7 +343,7 @@ func initAnnouncement(c *fyne.Container) {
 	announcementBox := container.NewVBox()
 	announcementLabel := widget.NewLabel("公告")
 	announcementContainerScroll := container.NewScroll(announcementContainer)
-	announcementContainerScroll.SetMinSize(fyne.NewSize(800, 100))
+	announcementContainerScroll.SetMinSize(fyne.NewSize(800, 150))
 	announcementBox.Hide()
 	announcementBox.Add(announcementLabel)
 	announcementBox.Add(announcementContainerScroll)
@@ -364,7 +366,7 @@ func initAnnouncement(c *fyne.Container) {
 func initMsgContainer(c *fyne.Container) {
 	msgBox := container.NewVBox()
 	msgContainerScroll := container.NewScroll(msgContainer)
-	msgContainerScroll.SetMinSize(fyne.NewSize(800, 200))
+	msgContainerScroll.SetMinSize(fyne.NewSize(800, 150))
 	msgBox.Add(msgContainerScroll)
 	c.Add(msgBox)
 }
