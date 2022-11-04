@@ -110,12 +110,12 @@ syncFile:
 	return nil
 }
 
-func syncFile(fileInfo *FileInfo, baseDir string) error {
+func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 	var err error
-	log.Debugf("syncing file info %+v\n", fileInfo)
+	log.Debugf("syncing file info %+v\n", serverFileInfo)
 
-	localPath := filepath.Join(baseDir, fileInfo.RelativePath)
-	log.Debugf("serverRelativePath: %s, localPath: %s\n", fileInfo.RelativePath, localPath)
+	localPath := filepath.Join(baseDir, serverFileInfo.RelativePath)
+	log.Debugf("serverRelativePath: %s, localPath: %s\n", serverFileInfo.RelativePath, localPath)
 
 	isExist, err := fsutil.Exists(localPath)
 	if err != nil {
@@ -124,9 +124,9 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 
 	syncTypeInfo := ""
 
-	if fileInfo.Type == TypeDir {
+	if serverFileInfo.Type == TypeDir {
 		if isExist {
-			fi, err := os.Stat(localPath)
+			fi, err := os.Lstat(localPath)
 			if err != nil {
 				return err
 			}
@@ -134,7 +134,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 				log.Debugf("[SKIP]same dir skip , localPath: %s\n", localPath)
 				return nil
 			} else {
-				log.Debugf("[DELETE]expected a dir but a file, delete it, localPath: %s\n", localPath)
+				log.Debugf("[DELETE]expected a dir but not, delete it, localPath: %s\n", localPath)
 				err := os.RemoveAll(localPath)
 				if err != nil {
 					return err
@@ -147,30 +147,28 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 
 		syncTypeInfo = "[FROM_LOCAL]"
-	} else if fileInfo.Type == TypeSymlink {
-
-	} else {
+	} else if serverFileInfo.Type == TypeFile {
 		if isExist {
-			fi, err := os.Stat(localPath)
+			fi, err := os.Lstat(localPath)
 			if err != nil {
 				return err
 			}
-			if fi.IsDir() {
-				log.Debugf("[DELETE]expected a file but a dir, delete it, localPath: %s\n", localPath)
-				err := os.RemoveAll(localPath)
-				if err != nil {
-					return err
-				}
-			} else {
+			if fi.Mode().IsRegular() {
 				hashSum, err := md5util.SumFile(localPath)
 				if err != nil {
 					return err
 				}
-				log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", fileInfo.RelativePath, fileInfo.Hash, hashSum)
+				log.Debugf("file: %s, serverHashSum: %s, hashSum: %s\n", serverFileInfo.RelativePath, serverFileInfo.Hash, hashSum)
 
-				if hashSum == fileInfo.Hash {
+				if hashSum == serverFileInfo.Hash {
 					log.Debugf("[SKIP]same file skip , localPath: %s\n", localPath)
 					return nil
+				}
+			} else {
+				log.Debugf("[DELETE]expected a regular file but not, delete it, localPath: %s\n", localPath)
+				err := os.RemoveAll(localPath)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -179,7 +177,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		isCacheHit := false
 		cachePath := ""
 		if config.Conf.IsUseCache {
-			isCacheHit, cachePath, _ = checkCache(fileInfo)
+			isCacheHit, cachePath, _ = checkCache(serverFileInfo)
 		}
 
 		isFinallyUseCache := false
@@ -195,7 +193,7 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 		if !isFinallyUseCache {
 			q := url.Values{}
-			q.Set("file", fileInfo.RelativePath)
+			q.Set("file", serverFileInfo.RelativePath)
 			resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
 			if err != nil {
 				return err
@@ -223,9 +221,68 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		if err != nil {
 			return err
 		}
+
+		// check hash
+		hashSum, err := md5util.SumFile(localPath)
+		if err != nil {
+			return err
+		}
+		log.Debugf("check downloaded file hash, file: %s, serverHashSum: %s, hashSum: %s\n", serverFileInfo.RelativePath, serverFileInfo.Hash, hashSum)
+
+		if hashSum != serverFileInfo.Hash {
+			return fmt.Errorf("download file hash check failed, expected: %s, got: %s", serverFileInfo.Hash, hashSum)
+		}
+	} else if serverFileInfo.Type == TypeSymlink {
+		q := url.Values{}
+		q.Set("file", serverFileInfo.RelativePath)
+		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		serverLinkDestByte, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		serverLinkDest := string(serverLinkDestByte)
+
+		if isExist {
+			fi, err := os.Lstat(localPath)
+			if err != nil {
+				return err
+			}
+			if fi.Mode()&os.ModeSymlink != 0 {
+
+				linkDest, err := os.Readlink(localPath)
+				if err != nil {
+					return err
+				}
+				if linkDest == serverLinkDest {
+					log.Debugf("[SKIP]same symlink skip , localPath: %s\n", localPath)
+					return nil
+				}
+			} else {
+				log.Debugf("[DELETE]expected a symlink but not, delete it, localPath: %s\n", localPath)
+				err := os.RemoveAll(localPath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		localDir := filepath.Dir(localPath)
+		err = os.MkdirAll(localDir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+
+		err = os.Symlink(serverLinkDest, localPath)
+		if err != nil {
+			return err
+		}
 	}
 
-	log.Debugf("[SYNC]%ssynced file info %+v\n", syncTypeInfo, fileInfo)
+	log.Debugf("[SYNC]%ssynced info %+v\n", syncTypeInfo, serverFileInfo)
 
 	return nil
 }
