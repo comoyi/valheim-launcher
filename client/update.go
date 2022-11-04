@@ -147,6 +147,8 @@ func syncFile(fileInfo *FileInfo, baseDir string) error {
 		}
 
 		syncTypeInfo = "[FROM_LOCAL]"
+	} else if fileInfo.Type == TypeSymlink {
+
 	} else {
 		if isExist {
 			fi, err := os.Stat(localPath)

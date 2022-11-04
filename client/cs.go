@@ -12,8 +12,9 @@ const (
 type FileType int8
 
 const (
-	TypeFile FileType = 1
-	TypeDir  FileType = 2
+	TypeFile    FileType = 1
+	TypeDir     FileType = 2
+	TypeSymlink FileType = 4
 )
 
 type ServerFileInfo struct {
