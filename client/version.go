@@ -1,6 +1,7 @@
 package client
 
-var versionText = "1.0.3"
+// set automatically at build time
+var versionText = "1.0.5"
 
 //var versionNo = 101
 //
