@@ -117,7 +117,7 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 	localPath := filepath.Join(baseDir, serverFileInfo.RelativePath)
 	log.Debugf("serverRelativePath: %s, localPath: %s\n", serverFileInfo.RelativePath, localPath)
 
-	isExist, err := fsutil.Exists(localPath)
+	isExist, err := fsutil.LExists(localPath)
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,6 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 				return err
 			}
 			if fi.Mode()&os.ModeSymlink != 0 {
-
 				linkDest, err := os.Readlink(localPath)
 				if err != nil {
 					return err
@@ -260,6 +259,11 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 				if linkDest == serverLinkDest {
 					log.Debugf("[SKIP]same symlink skip , localPath: %s\n", localPath)
 					return nil
+				} else {
+					err := os.RemoveAll(localPath)
+					if err != nil {
+						return err
+					}
 				}
 			} else {
 				log.Debugf("[DELETE]expected a symlink but not, delete it, localPath: %s\n", localPath)
