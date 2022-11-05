@@ -450,18 +450,18 @@ func checkCache(fileInfo *FileInfo) (bool, string, error) {
 	}
 	cachePath = filepath.Join(cacheDirPath, fileInfo.RelativePath)
 	log.Debugf("cache dir: %s, cache path: %s\n", cacheDir, cachePath)
-	isCacheExist, err := fsutil.Exists(cachePath)
+	isCacheExist, err := fsutil.LExists(cachePath)
 	if err != nil {
 		log.Debugf("check file is exists failed, cachePath: %s, err: %v\n", cachePath, err)
 		return false, cachePath, err
 	}
 	if isCacheExist {
-		cfi, err := os.Stat(cachePath)
+		cfi, err := os.Lstat(cachePath)
 		if err != nil {
 			log.Debugf("get file info failed, cachePath: %s, err: %v\n", cachePath, err)
 			return false, cachePath, err
 		}
-		if !cfi.IsDir() {
+		if cfi.Mode().IsRegular() {
 			hashSum, err := md5util.SumFile(cachePath)
 			if err != nil {
 				log.Debugf("get file hash failed, cachePath: %s, err: %v\n", cachePath, err)
