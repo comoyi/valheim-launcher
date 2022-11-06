@@ -89,7 +89,7 @@ func SaveConfig() error {
 		return err
 	}
 	if !exist {
-		err = os.MkdirAll(configDirPath, os.ModePerm)
+		err = os.MkdirAll(configDirPath, os.FileMode(0o755))
 		if err != nil {
 			log.Warnf("Get os.MkdirAll failed, err: %v\n", err)
 			return err
