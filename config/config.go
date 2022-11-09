@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/util/fsutil"
 	"github.com/spf13/viper"
@@ -40,7 +39,13 @@ func LoadConfig() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(".")
-	viper.AddConfigPath(fmt.Sprintf("%s%s%s", "$HOME", string(os.PathSeparator), ".valheim-launcher"))
+
+	configDirPath, err := getConfigDirPath()
+	if err != nil {
+		log.Warnf("Get configDirPath failed, err: %v\n", err)
+		return
+	}
+	viper.AddConfigPath(configDirPath)
 
 	initDefaultConfig()
 
@@ -69,24 +74,22 @@ func SaveConfig() error {
 		return nil
 	}
 
-	userHomeDir, err := os.UserHomeDir()
+	configDirPath, err := getConfigDirPath()
 	if err != nil {
-		log.Warnf("Get os.UserHomeDir failed, err: %v\n", err)
+		log.Warnf("Get configDirPath failed, err: %v\n", err)
 		return err
 	}
-	log.Debugf("userHomeDir: %s\n", userHomeDir)
 
-	configPath := filepath.Join(userHomeDir, ".valheim-launcher")
-	configFile := filepath.Join(configPath, "config.toml")
+	configFile := filepath.Join(configDirPath, "config.toml")
 	log.Debugf("configFile: %s\n", configFile)
 
-	exist, err := fsutil.Exists(configPath)
+	exist, err := fsutil.Exists(configDirPath)
 	if err != nil {
 		log.Warnf("Check isPathExist failed, err: %v\n", err)
 		return err
 	}
 	if !exist {
-		err = os.MkdirAll(configPath, os.ModePerm)
+		err = os.MkdirAll(configDirPath, os.FileMode(0o755))
 		if err != nil {
 			log.Warnf("Get os.MkdirAll failed, err: %v\n", err)
 			return err
@@ -99,4 +102,24 @@ func SaveConfig() error {
 		return err
 	}
 	return nil
+}
+
+func getConfigDirPath() (string, error) {
+	configRootPath, err := getConfigRootPath()
+	if err != nil {
+		return "", err
+	}
+
+	configPath := filepath.Join(configRootPath, ".valheim-launcher")
+	return configPath, nil
+}
+
+func getConfigRootPath() (string, error) {
+	var err error
+	configRootPath := ""
+	configRootPath, err = os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return configRootPath, nil
 }
