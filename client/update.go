@@ -25,6 +25,7 @@ type UpdateInfo struct {
 var UpdateInf *UpdateInfo = &UpdateInfo{}
 
 var errServerScanning = fmt.Errorf("服务器正在刷新文件列表，请稍后再试")
+var errNotInBaseDir = fmt.Errorf("not in baseDir")
 
 func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) error {
 	log.Infof("baseDir: %v\n", baseDir)
@@ -116,6 +117,11 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 
 	localPath := filepath.Join(baseDir, serverFileInfo.RelativePath)
 	log.Debugf("serverRelativePath: %s, localPath: %s\n", serverFileInfo.RelativePath, localPath)
+
+	if !strings.HasPrefix(localPath, baseDir) {
+		log.Warnf("Not in baseDir, serverRelativePath: %s, localPath: %s, baseDir: %s\n", serverFileInfo.RelativePath, localPath, baseDir)
+		return errNotInBaseDir
+	}
 
 	isExist, err := fsutil.LExists(localPath)
 	if err != nil {
@@ -306,6 +312,10 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 		if !in(file.RelativePath, serverFileInfo.Files) {
 			if isInAllowDeleteDirs(file.RelativePath) {
 				path := filepath.Join(baseDir, file.RelativePath)
+				if !strings.HasPrefix(path, baseDir) {
+					log.Warnf("Not in baseDir, relativePath: %s, path: %s, baseDir: %s\n", file.RelativePath, path, baseDir)
+					return errNotInBaseDir
+				}
 				err := os.RemoveAll(path)
 				if err != nil {
 					log.Warnf("delete file failed, err: %v, file: %s\n", err, file.RelativePath)
@@ -379,7 +389,12 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 		if err != nil {
 			return err
 		}
-		if strings.HasPrefix(relativePath, ".") {
+		if relativePath == "." ||
+			relativePath == ".." ||
+			strings.HasPrefix(relativePath, "./") ||
+			strings.HasPrefix(relativePath, ".\\") ||
+			strings.HasPrefix(relativePath, "../") ||
+			strings.HasPrefix(relativePath, "..\\") {
 			return fmt.Errorf("relativePath not expected, baseDir: %s, path: %s, relativePath: %s\n", baseDir, path, relativePath)
 		}
 		if relativePath == "" {
@@ -393,7 +408,14 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 				Type:         TypeDir,
 				Hash:         "",
 			}
-		} else {
+		} else if info.Mode()&os.ModeSymlink != 0 {
+			log.Tracef("symlink:  %s\n", relativePath)
+			file = &FileInfo{
+				RelativePath: relativePath,
+				Type:         TypeSymlink,
+				Hash:         "",
+			}
+		} else if info.Mode().IsRegular() {
 			var hashSum string
 			if isHash {
 				var err error
@@ -410,6 +432,9 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 				Type:         TypeFile,
 				Hash:         hashSum,
 			}
+		} else {
+			log.Tracef("unhandled file type, filepath:  %s\n", relativePath)
+			return nil
 		}
 		*files = append(*files, file)
 		return nil
