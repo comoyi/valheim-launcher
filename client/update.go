@@ -402,14 +402,14 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 		}
 		var file *FileInfo
 		if info.IsDir() {
-			log.Tracef("dir:  %s\n", relativePath)
+			log.Tracef("dir:     %s\n", relativePath)
 			file = &FileInfo{
 				RelativePath: relativePath,
 				Type:         TypeDir,
 				Hash:         "",
 			}
 		} else if info.Mode()&os.ModeSymlink != 0 {
-			log.Tracef("symlink:  %s\n", relativePath)
+			log.Tracef("symlink: %s\n", relativePath)
 			file = &FileInfo{
 				RelativePath: relativePath,
 				Type:         TypeSymlink,
@@ -423,9 +423,9 @@ func walkFun(files *[]*FileInfo, baseDir string, isHash bool) filepath.WalkFunc 
 				if err != nil {
 					return err
 				}
-				log.Tracef("file: %s, hashSum: %s\n", relativePath, hashSum)
+				log.Tracef("file:    %s, hashSum: %s\n", relativePath, hashSum)
 			} else {
-				log.Tracef("file: %s\n", relativePath)
+				log.Tracef("file:    %s\n", relativePath)
 			}
 			file = &FileInfo{
 				RelativePath: relativePath,
