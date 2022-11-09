@@ -118,7 +118,11 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 	localPath := filepath.Join(baseDir, serverFileInfo.RelativePath)
 	log.Debugf("serverRelativePath: %s, localPath: %s\n", serverFileInfo.RelativePath, localPath)
 
-	if !strings.HasPrefix(localPath, baseDir) {
+	isBelong, err := isBelongDir(localPath, baseDir)
+	if err != nil {
+		return err
+	}
+	if !isBelong {
 		log.Warnf("Not in baseDir, serverRelativePath: %s, localPath: %s, baseDir: %s\n", serverFileInfo.RelativePath, localPath, baseDir)
 		return errNotInBaseDir
 	}
@@ -302,6 +306,7 @@ type ClientFileInfo struct {
 }
 
 func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
+	var err error
 	clientFileInfo, err := getClientFileInfoWithoutHash(baseDir)
 	if err != nil {
 		log.Warnf("getClientFileInfo failed, err: %v\n", err)
@@ -310,13 +315,14 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 	files := clientFileInfo.Files
 	for _, file := range files {
 		if !in(file.RelativePath, serverFileInfo.Files) {
-			if isInAllowDeleteDirs(file.RelativePath) {
-				path := filepath.Join(baseDir, file.RelativePath)
-				if !strings.HasPrefix(path, baseDir) {
-					log.Warnf("Not in baseDir, relativePath: %s, path: %s, baseDir: %s\n", file.RelativePath, path, baseDir)
-					return errNotInBaseDir
-				}
-				err := os.RemoveAll(path)
+			path := filepath.Join(baseDir, file.RelativePath)
+			isAllow, err := isAllowDelete(path, baseDir, file.RelativePath)
+			if err != nil {
+				log.Warnf("check delete file failed, err: %v, file: %s\n", err, file.RelativePath)
+				return err
+			}
+			if isAllow {
+				err = os.RemoveAll(path)
 				if err != nil {
 					log.Warnf("delete file failed, err: %v, file: %s\n", err, file.RelativePath)
 					return err
@@ -337,17 +343,25 @@ func in(file string, files []*FileInfo) bool {
 	return false
 }
 
-func isInAllowDeleteDirs(relativePath string) bool {
+func isAllowDelete(path string, baseDir string, relativePath string) (bool, error) {
+	isBelong, err := isBelongDir(path, baseDir)
+	if err != nil {
+		return false, err
+	}
+	if !isBelong {
+		log.Warnf("Not in baseDir, relativePath: %s, path: %s, baseDir: %s\n", relativePath, path, baseDir)
+		return false, nil
+	}
 	allowDeleteDirs := make([]string, 0)
 	allowDeleteDirs = append(allowDeleteDirs, "BepInEx")
 	allowDeleteDirs = append(allowDeleteDirs, "doorstop_libs")
 	allowDeleteDirs = append(allowDeleteDirs, "unstripped_corlib")
 	for _, dir := range allowDeleteDirs {
 		if strings.HasPrefix(relativePath, dir) {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func getClientFileInfoWithoutHash(baseDir string) (*ClientFileInfo, error) {
@@ -500,4 +514,24 @@ func checkCache(fileInfo *FileInfo) (bool, string, error) {
 		}
 	}
 	return false, cachePath, nil
+}
+
+func isBelongDir(path string, baseDir string) (bool, error) {
+	if path == baseDir {
+		return true, nil
+	}
+
+	// path end with slash
+	if strings.HasSuffix(baseDir, "/") ||
+		strings.HasSuffix(baseDir, "\\") {
+		if strings.HasPrefix(path, baseDir) {
+			return true, nil
+		}
+	} else {
+		if strings.HasPrefix(path, baseDir+"/") ||
+			strings.HasPrefix(path, baseDir+"\\") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
