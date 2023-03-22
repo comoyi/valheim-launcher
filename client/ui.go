@@ -340,6 +340,7 @@ func initStartBtn() *widget.Button {
 		dir := config.Conf.Dir
 		if dir == "" {
 			dialogutil.ShowInformation("提示", "请先选择英灵神殿所在文件夹", w)
+			return
 		}
 
 		cmdSteam := exec.Command("cmd", "/C", "start", "/B", "steam://")
