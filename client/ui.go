@@ -266,7 +266,7 @@ func initMenu() {
 
 		h := container.NewHBox()
 
-		authorInfo := widget.NewLabel("Copyright © 2022-2023 清新池塘")
+		authorInfo := widget.NewLabel("Copyright © 2022 清新池塘")
 		h.Add(authorInfo)
 		linkInfo := widget.NewHyperlink(" ", nil)
 		_ = linkInfo.SetURLFromString("https://github.com/comoyi/valheim-launcher")
@@ -336,24 +336,8 @@ func initStartBtn() *widget.Button {
 			dialogutil.ShowInformation("", "当前只支持Windows", w)
 			return
 		}
-
-		dir := config.Conf.Dir
-		if dir == "" {
-			dialogutil.ShowInformation("提示", "请先选择英灵神殿所在文件夹", w)
-			return
-		}
-
-		cmdSteam := exec.Command("cmd", "/C", "start", "/B", "steam://")
-		err := cmdSteam.Start()
-		if err != nil {
-			log.Infof("Start steam failed, err: %v\n", err)
-			addMsgWithTime("启动Steam失败，请通过其他方式启动")
-			return
-		}
-
-		p := filepath.Join(dir, "valheim.exe")
-		cmd := exec.Command("cmd", "/C", "start", "/B", p)
-		err = cmd.Start()
+		cmd := exec.Command("cmd", "/C", "start", "/B", "steam://rungameid/892970")
+		err := cmd.Start()
 		if err != nil {
 			log.Infof("Start failed, err: %v\n", err)
 			addMsgWithTime("启动失败，请通过其他方式启动")
