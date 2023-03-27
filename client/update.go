@@ -509,7 +509,7 @@ func getFullDownloadUrlByFile(relativePath string) string {
 	if downloadServer.Type == DownloadServerTypeOss {
 		relativePath = strings.ReplaceAll(relativePath, "\\\\", "/")
 		relativePath = strings.ReplaceAll(relativePath, "\\", "/")
-		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, fmt.Sprintf("/%s", prefixPath)), relativePath)
+		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, fmt.Sprintf("%s/", prefixPath)), relativePath)
 	} else {
 		q := url.Values{}
 		q.Set("file", fmt.Sprintf("%s%s", prefixPath, relativePath))
