@@ -3,6 +3,7 @@ package client
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"github.com/comoyi/valheim-launcher/config"
 	"github.com/comoyi/valheim-launcher/log"
 	"github.com/comoyi/valheim-launcher/util/cryptoutil/md5util"
@@ -122,22 +123,23 @@ func getCacheInfoFilePath() (string, error) {
 	return cacheInfoFilePath, nil
 }
 
-func checkCache(fileInfo *FileInfo) (bool, string, error) {
+func getCacheInfo() (*CacheInfo, error) {
+
 	cacheInfoFilePath, err := getCacheInfoFilePath()
 	if err != nil {
 		log.Debugf("get CacheInfoFilePath failed, err: %v\n", err)
-		return false, "", err
+		return nil, err
 	}
 	fileContentByte, err := os.ReadFile(cacheInfoFilePath)
 	if err != nil {
-		return false, "", err
+		return nil, err
 	}
 
 	var cacheInfo *CacheInfo
 	err = json.Unmarshal(fileContentByte, &cacheInfo)
 	if err != nil {
 		log.Debugf("decode cacheInfoFile failed, err: %v\n", err)
-		return false, "", err
+		return nil, err
 	}
 
 	log.Debugf("cacheInfoFile: %+v\n", cacheInfo)
@@ -147,17 +149,34 @@ func checkCache(fileInfo *FileInfo) (bool, string, error) {
 			log.Debugf("cacheInfoFile->files->%v: %+v\n", mapKey, mapV)
 		}
 	}
+	return cacheInfo, nil
+}
 
-	cacheDir := config.Conf.CacheDir
+func checkCache(fileInfo *FileInfo) (bool, string, error) {
 	cachePath := ""
 
-	cacheDirPath, err := filepath.Abs(cacheDir)
+	cacheInfo, err := getCacheInfo()
 	if err != nil {
-		log.Debugf("get cache dir absolute path failed, cache dir: %s, err: %v\n", cacheDir, err)
 		return false, cachePath, err
 	}
-	cachePath = filepath.Join(cacheDirPath, fileInfo.RelativePath)
-	log.Debugf("cache dir: %s, cache path: %s\n", cacheDir, cachePath)
+
+	if cacheInfo == nil {
+		return false, cachePath, nil
+	}
+
+	cacheFile, ok := cacheInfo.Files[fileInfo.Hash]
+	if !ok {
+		return false, cachePath, nil
+	}
+	if cacheFile == nil {
+		return false, cachePath, fmt.Errorf("cache data error, cacheFile is nil")
+	}
+	cachePath = cacheFile.RelativePath
+
+	if cachePath == "" {
+		log.Debugf("cachePath is empty")
+		return false, cachePath, fmt.Errorf("cachePath is empty")
+	}
 	isCacheExist, err := fsutil.LExists(cachePath)
 	if err != nil {
 		log.Debugf("check file is exists failed, cachePath: %s, err: %v\n", cachePath, err)
