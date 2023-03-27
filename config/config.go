@@ -20,7 +20,7 @@ type Config struct {
 	AnnouncementRefreshInterval int64             `toml:"announcement_refresh_interval" mapstructure:"announcement_refresh_interval"`
 	IsUseCache                  bool              `toml:"is_use_cache" mapstructure:"is_use_cache"`
 	CacheDir                    string            `toml:"cache_dir" mapstructure:"cache_dir"`
-	DownloadServers             []*DownloadServer `toml:"download_server" mapstructure:"download_server"`
+	DownloadServers             []*DownloadServer `toml:"download_servers" mapstructure:"download_servers"`
 }
 
 type DownloadServer struct {
@@ -70,6 +70,11 @@ func LoadConfig() {
 		return
 	}
 	log.Debugf("config: %+v\n", Conf)
+	if Conf.DownloadServers != nil {
+		for _, downloadServer := range Conf.DownloadServers {
+			log.Debugf("config DownloadServer: %+v\n", downloadServer)
+		}
+	}
 }
 
 var saveMutex = &sync.Mutex{}
