@@ -479,7 +479,7 @@ func getFullDownloadUrlByFile(relativePath string) string {
 		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, fmt.Sprintf("/%s", prefixPath)), relativePath)
 	} else {
 		q := url.Values{}
-		q.Set("file", relativePath)
+		q.Set("file", fmt.Sprintf("%s%s", prefixPath, relativePath))
 		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, "/sync"), "?"+q.Encode())
 	}
 	log.Debugf("download from: %s\n", u)
