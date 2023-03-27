@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 )
 
@@ -231,10 +230,11 @@ func generateCacheFile(localPath string) error {
 	if err != nil {
 		return err
 	}
-	nowTD := time.Now().Unix()
-	nowT := time.Now().UnixMilli()
+	now := time.Now()
+	nowD := timeutil.TimestampToDate(now.Unix())
+	nowT := now.UnixMilli()
 	cacheFilename := fmt.Sprintf("%s-%v", "vlcache", nowT)
-	cacheDirPathT := filepath.Join(cacheDirPath, strconv.FormatInt(nowTD, 10))
+	cacheDirPathT := filepath.Join(cacheDirPath, nowD)
 	cacheFilePath := filepath.Join(cacheDirPathT, cacheFilename)
 
 	err = os.MkdirAll(cacheDirPathT, os.ModePerm)
