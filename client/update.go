@@ -473,15 +473,16 @@ func getFullDownloadUrlByFile(relativePath string) string {
 	randNum := rand.Intn(count)
 	downloadServer := downloadServers[randNum]
 
-	q := url.Values{}
-	q.Set("file", relativePath)
 	var u string = ""
 	prefixPath := downloadServer.PrefixPath
 	if downloadServer.Type == DownloadServerTypeOss {
-		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, fmt.Sprintf("/%s", prefixPath)), q.Encode())
+		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, fmt.Sprintf("/%s", prefixPath)), relativePath)
 	} else {
+		q := url.Values{}
+		q.Set("file", relativePath)
 		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, "/sync"), "?"+q.Encode())
 	}
+	log.Debugf("download from: %s\n", u)
 	return u
 }
 
