@@ -81,6 +81,10 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 		syncChan <- file
 	}
 
+	if isRegenerateCache() {
+		generateCache(baseDir)
+	}
+
 syncFile:
 	for {
 		select {
