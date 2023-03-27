@@ -1,5 +1,5 @@
 # 日志等级 TRACE DEBUG INFO WARN ERROR OFF
-log_level = 'OFF'
+log_level = 'TRACE'
 
 # 是否启用缓存
 is_use_cache = true
@@ -28,8 +28,6 @@ host = '127.0.0.1'
 port = 8080
 # 路径前缀
 prefix_path = ''
-# 2: OSS
-type = 2
 
 [[download_server]]
 # 协议
@@ -40,5 +38,3 @@ host = '127.0.0.2'
 port = 8080
 # 路径前缀
 prefix_path = ''
-# 2: OSS
-type = 2

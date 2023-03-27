@@ -10,6 +10,7 @@ import (
 	"github.com/comoyi/valheim-launcher/util/fsutil"
 	"io"
 	"io/fs"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -202,9 +203,7 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 			syncTypeInfo = "[FROM_CACHE]"
 		}
 		if !isFinallyUseCache {
-			q := url.Values{}
-			q.Set("file", serverFileInfo.RelativePath)
-			resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+			resp, err := http.Get(getFullDownloadUrlByFile(serverFileInfo.RelativePath))
 			if err != nil {
 				return err
 			}
@@ -243,9 +242,7 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 			return fmt.Errorf("download file hash check failed, expected: %s, got: %s", serverFileInfo.Hash, hashSum)
 		}
 	} else if serverFileInfo.Type == TypeSymlink {
-		q := url.Values{}
-		q.Set("file", serverFileInfo.RelativePath)
-		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+		resp, err := http.Get(getFullDownloadUrlByFile(serverFileInfo.RelativePath))
 		if err != nil {
 			return err
 		}
@@ -462,6 +459,39 @@ func getFullUrl(path string) string {
 	}
 	host := config.Conf.Host
 	port := config.Conf.Port
+	u := fmt.Sprintf("%s://%s:%d%s", protocol, host, port, path)
+	return u
+}
+
+const (
+	DownloadServerTypeOss = 2
+)
+
+func getFullDownloadUrlByFile(relativePath string) string {
+	downloadServers := config.Conf.DownloadServers
+	count := len(downloadServers)
+	randNum := rand.Intn(count)
+	downloadServer := downloadServers[randNum]
+
+	q := url.Values{}
+	q.Set("file", relativePath)
+	var u string = ""
+	prefixPath := downloadServer.PrefixPath
+	if downloadServer.Type == DownloadServerTypeOss {
+		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, fmt.Sprintf("/%s", prefixPath)), q.Encode())
+	} else {
+		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, "/sync"), "?"+q.Encode())
+	}
+	return u
+}
+
+func getFullDownloadUrl(downloadServer *config.DownloadServer, path string) string {
+	protocol := downloadServer.Protocol
+	if protocol == "" {
+		protocol = "http"
+	}
+	host := downloadServer.Host
+	port := downloadServer.Port
 	u := fmt.Sprintf("%s://%s:%d%s", protocol, host, port, path)
 	return u
 }
