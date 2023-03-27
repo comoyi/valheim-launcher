@@ -9,8 +9,10 @@ import (
 	"github.com/comoyi/valheim-launcher/util/cryptoutil/md5util"
 	"github.com/comoyi/valheim-launcher/util/fsutil"
 	"github.com/comoyi/valheim-launcher/util/timeutil"
+	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -31,9 +33,17 @@ func isRegenerateCache() bool {
 	return true
 }
 
-func generateCache(baseDir string) error {
-
-	clientFileInfo, err := getClientFileInfo(baseDir)
+func generateCache() error {
+	cacheDirPath, err := getCacheDirPath()
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(cacheDirPath, os.ModePerm)
+	if err != nil {
+		log.Debugf("create cache dir failed, dir: %s, err: %v\n", cacheDirPath, err)
+		return err
+	}
+	clientFileInfo, err := getClientFileInfo(cacheDirPath)
 	if err != nil {
 		log.Warnf("getClientFileInfo failed, err: %v\n", err)
 		return err
@@ -154,6 +164,9 @@ func getCacheInfo() (*CacheInfo, error) {
 
 func checkCache(fileInfo *FileInfo) (bool, string, error) {
 	cachePath := ""
+	if fileInfo.Hash == "" {
+		return false, cachePath, nil
+	}
 
 	cacheInfo, err := getCacheInfo()
 	if err != nil {
@@ -171,7 +184,9 @@ func checkCache(fileInfo *FileInfo) (bool, string, error) {
 	if cacheFile == nil {
 		return false, cachePath, fmt.Errorf("cache data error, cacheFile is nil")
 	}
-	cachePath = cacheFile.RelativePath
+	cacheDir := config.Conf.CacheDir
+	cachePathWithoutCacheDir := cacheFile.RelativePath
+	cachePath = filepath.Join(cacheDir, cachePathWithoutCacheDir)
 
 	if cachePath == "" {
 		log.Debugf("cachePath is empty")
@@ -202,4 +217,55 @@ func checkCache(fileInfo *FileInfo) (bool, string, error) {
 		}
 	}
 	return false, cachePath, nil
+}
+
+func generateCacheFile(localPath string) error {
+	f, err := os.Open(localPath)
+	if err != nil {
+		log.Debugf("in generateCacheFile, open localPath file failed, localPath: %s, err: %v\n", localPath, err)
+		return err
+	}
+	defer f.Close()
+
+	cacheDirPath, err := getCacheDirPath()
+	if err != nil {
+		return err
+	}
+	nowTD := time.Now().Unix()
+	nowT := time.Now().UnixMilli()
+	cacheFilename := fmt.Sprintf("%s-%v", "aa", nowT)
+	cacheDirPathT := filepath.Join(cacheDirPath, strconv.FormatInt(nowTD, 10))
+	cacheFilePath := filepath.Join(cacheDirPathT, cacheFilename)
+
+	err = os.MkdirAll(cacheDirPathT, os.ModePerm)
+	if err != nil {
+		log.Debugf("create cache dir failed, dir: %s, err: %v\n", cacheDirPath, err)
+		return err
+	}
+
+	file, err := os.Create(cacheFilePath)
+	if err != nil {
+		log.Debugf("create cache file failed, dir: %s, err: %v\n", cacheDirPathT, err)
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, f)
+	if err != nil {
+		log.Debugf("write cache file failed, cacheFilePath: %s, err: %v\n", cacheFilePath, err)
+		return err
+	}
+	return nil
+}
+
+func getCacheDirPath() (string, error) {
+	cacheDir := config.Conf.CacheDir
+
+	cacheDirPath, err := filepath.Abs(cacheDir)
+	if err != nil {
+		log.Debugf("get cache dir absolute path failed, cache dir: %s, err: %v\n", cacheDir, err)
+		return "", err
+	}
+
+	return cacheDirPath, nil
 }

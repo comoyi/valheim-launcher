@@ -81,8 +81,10 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 		syncChan <- file
 	}
 
-	if isRegenerateCache() {
-		generateCache(baseDir)
+	if config.Conf.IsUseCache {
+		if isRegenerateCache() {
+			generateCache()
+		}
 	}
 
 syncFile:
@@ -233,6 +235,14 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 		_, err = io.Copy(file, srcFile)
 		if err != nil {
 			return err
+		}
+
+		// cache downloaded file
+		if config.Conf.IsUseCache {
+			err = generateCacheFile(localPath)
+			//if err != nil {
+			//	return err
+			//}
 		}
 
 		// check hash
