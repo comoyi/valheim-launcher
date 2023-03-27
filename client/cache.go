@@ -161,15 +161,10 @@ func getCacheInfo() (*CacheInfo, error) {
 	return cacheInfo, nil
 }
 
-func checkCache(fileInfo *FileInfo) (bool, string, error) {
+func checkCache(fileInfo *FileInfo, cacheInfo *CacheInfo) (bool, string, error) {
 	cachePath := ""
 	if fileInfo.Hash == "" {
 		return false, cachePath, nil
-	}
-
-	cacheInfo, err := getCacheInfo()
-	if err != nil {
-		return false, cachePath, err
 	}
 
 	if cacheInfo == nil {
@@ -232,7 +227,7 @@ func generateCacheFile(localPath string) error {
 	}
 	now := time.Now()
 	nowD := timeutil.TimestampToDate(now.Unix())
-	nowT := now.UnixMilli()
+	nowT := now.UnixNano()
 	cacheFilename := fmt.Sprintf("%s-%v", "vlcache", nowT)
 	cacheDirPathT := filepath.Join(cacheDirPath, nowD)
 	cacheFilePath := filepath.Join(cacheDirPathT, cacheFilename)

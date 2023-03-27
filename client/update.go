@@ -81,9 +81,14 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 		syncChan <- file
 	}
 
+	var cacheInfo *CacheInfo
 	if config.Conf.IsUseCache {
 		if isRegenerateCache() {
 			generateCache()
+		}
+		cacheInfo, err = getCacheInfo()
+		if err != nil {
+			return err
 		}
 	}
 
@@ -95,7 +100,7 @@ syncFile:
 		default:
 			select {
 			case f := <-syncChan:
-				err := syncFile(f, baseDir)
+				err := syncFile(f, baseDir, cacheInfo)
 				if err != nil {
 					log.Debugf("sync file failed, fileInfo: %+v, err: %s\n", f, err)
 					return err
@@ -118,7 +123,7 @@ syncFile:
 	return nil
 }
 
-func syncFile(serverFileInfo *FileInfo, baseDir string) error {
+func syncFile(serverFileInfo *FileInfo, baseDir string, cacheInfo *CacheInfo) error {
 	var err error
 	log.Debugf("syncing file info %+v\n", serverFileInfo)
 
@@ -194,7 +199,7 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 		isCacheHit := false
 		cachePath := ""
 		if config.Conf.IsUseCache {
-			isCacheHit, cachePath, _ = checkCache(serverFileInfo)
+			isCacheHit, cachePath, _ = checkCache(serverFileInfo, cacheInfo)
 		}
 
 		isFinallyUseCache := false
@@ -336,7 +341,7 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 
 			// ignore cache_dir files
 			if strings.HasPrefix(path, cacheDirPath) {
-				continue;
+				continue
 			}
 
 			isAllow, err := isAllowDelete(path, baseDir, file.RelativePath)
