@@ -81,6 +81,12 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 		syncChan <- file
 	}
 
+	if config.Conf.IsUseCache {
+		if isRegenerateCache() {
+			generateCache()
+		}
+	}
+
 syncFile:
 	for {
 		select {
@@ -229,6 +235,14 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 		_, err = io.Copy(file, srcFile)
 		if err != nil {
 			return err
+		}
+
+		// cache downloaded file
+		if config.Conf.IsUseCache {
+			err = generateCacheFile(localPath)
+			//if err != nil {
+			//	return err
+			//}
 		}
 
 		// check hash
@@ -509,44 +523,6 @@ func httpGet(url string) (string, error) {
 		return "", err
 	}
 	return string(j), nil
-}
-
-func checkCache(fileInfo *FileInfo) (bool, string, error) {
-	cacheDir := config.Conf.CacheDir
-	cachePath := ""
-
-	cacheDirPath, err := filepath.Abs(cacheDir)
-	if err != nil {
-		log.Debugf("get cache dir absolute path failed, cache dir: %s, err: %v\n", cacheDir, err)
-		return false, cachePath, err
-	}
-	cachePath = filepath.Join(cacheDirPath, fileInfo.RelativePath)
-	log.Debugf("cache dir: %s, cache path: %s\n", cacheDir, cachePath)
-	isCacheExist, err := fsutil.LExists(cachePath)
-	if err != nil {
-		log.Debugf("check file is exists failed, cachePath: %s, err: %v\n", cachePath, err)
-		return false, cachePath, err
-	}
-	if isCacheExist {
-		cfi, err := os.Lstat(cachePath)
-		if err != nil {
-			log.Debugf("get file info failed, cachePath: %s, err: %v\n", cachePath, err)
-			return false, cachePath, err
-		}
-		if cfi.Mode().IsRegular() {
-			hashSum, err := md5util.SumFile(cachePath)
-			if err != nil {
-				log.Debugf("get file hash failed, cachePath: %s, err: %v\n", cachePath, err)
-				return false, cachePath, err
-			}
-			log.Debugf("cache path: %s, serverHashSum: %s, cache hashSum: %s\n", cachePath, fileInfo.Hash, hashSum)
-			if hashSum == fileInfo.Hash {
-				log.Debugf("[CACHE_HIT]cache hit , cachePath: %s\n", cachePath)
-				return true, cachePath, nil
-			}
-		}
-	}
-	return false, cachePath, nil
 }
 
 func isBelongDir(path string, baseDir string) (bool, error) {

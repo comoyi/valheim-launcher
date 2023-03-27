@@ -5,7 +5,7 @@ log_level = 'OFF'
 is_use_cache = true
 
 # 缓存文件夹路径
-cache_dir = '.cache'
+cache_dir = '.valheim-launcher-cache'
 
 # 协议
 protocol = 'http'
