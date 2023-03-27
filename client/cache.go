@@ -72,23 +72,11 @@ func generateCache(baseDir string) error {
 
 	log.Debugf("cache info json: %v\n", cacheInfoData)
 
-	cacheInfoFileName := "valheim-launcher-cache"
-	cacheDir := config.Conf.CacheDir
-
-	cacheDirPath, err := filepath.Abs(cacheDir)
+	cacheInfoFilePath, err := getCacheInfoFilePath()
 	if err != nil {
-		log.Debugf("get cache dir absolute path failed, cache dir: %s, err: %v\n", cacheDir, err)
+		log.Debugf("get CacheInfoFilePath failed, err: %v\n", err)
 		return err
 	}
-
-	err = os.MkdirAll(cacheDirPath, os.ModePerm)
-	if err != nil {
-		log.Debugf("create cache dir failed, dir: %s, err: %v\n", cacheDirPath, err)
-		return err
-	}
-
-	cacheInfoFilePath := filepath.Join(cacheDirPath, cacheInfoFileName)
-	log.Debugf("cache dir: %s, cacheInfoFilePath: %s\n", cacheDir, cacheInfoFilePath)
 
 	file, err := os.Create(cacheInfoFilePath)
 	if err != nil {
@@ -112,7 +100,54 @@ func generateCache(baseDir string) error {
 	return nil
 }
 
+func getCacheInfoFilePath() (string, error) {
+
+	cacheInfoFileName := "valheim-launcher-cache"
+	cacheDir := config.Conf.CacheDir
+
+	cacheDirPath, err := filepath.Abs(cacheDir)
+	if err != nil {
+		log.Debugf("get cache dir absolute path failed, cache dir: %s, err: %v\n", cacheDir, err)
+		return "", err
+	}
+
+	err = os.MkdirAll(cacheDirPath, os.ModePerm)
+	if err != nil {
+		log.Debugf("create cache dir failed, dir: %s, err: %v\n", cacheDirPath, err)
+		return "", err
+	}
+
+	cacheInfoFilePath := filepath.Join(cacheDirPath, cacheInfoFileName)
+	log.Debugf("cache dir: %s, cacheInfoFilePath: %s\n", cacheDir, cacheInfoFilePath)
+	return cacheInfoFilePath, nil
+}
+
 func checkCache(fileInfo *FileInfo) (bool, string, error) {
+	cacheInfoFilePath, err := getCacheInfoFilePath()
+	if err != nil {
+		log.Debugf("get CacheInfoFilePath failed, err: %v\n", err)
+		return false, "", err
+	}
+	fileContentByte, err := os.ReadFile(cacheInfoFilePath)
+	if err != nil {
+		return false, "", err
+	}
+
+	var cacheInfo *CacheInfo
+	err = json.Unmarshal(fileContentByte, &cacheInfo)
+	if err != nil {
+		log.Debugf("decode cacheInfoFile failed, err: %v\n", err)
+		return false, "", err
+	}
+
+	log.Debugf("cacheInfoFile: %+v\n", cacheInfo)
+	if cacheInfo.Files != nil {
+		log.Debugf("cacheInfoFile->files: %+v\n", cacheInfo.Files)
+		for mapKey, mapV := range cacheInfo.Files {
+			log.Debugf("cacheInfoFile->files->%v: %+v\n", mapKey, mapV)
+		}
+	}
+
 	cacheDir := config.Conf.CacheDir
 	cachePath := ""
 
