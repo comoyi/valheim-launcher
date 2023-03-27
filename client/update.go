@@ -323,10 +323,22 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 		log.Warnf("getClientFileInfo failed, err: %v\n", err)
 		return err
 	}
+
+	cacheDirPath, err := getCacheDirPath()
+	if err != nil {
+		return err
+	}
+
 	files := clientFileInfo.Files
 	for _, file := range files {
 		if !in(file.RelativePath, serverFileInfo.Files) {
 			path := filepath.Join(baseDir, file.RelativePath)
+
+			// ignore cache_dir files
+			if strings.HasPrefix(path, cacheDirPath) {
+				continue;
+			}
+
 			isAllow, err := isAllowDelete(path, baseDir, file.RelativePath)
 			if err != nil {
 				log.Warnf("check delete file failed, err: %v, file: %s\n", err, file.RelativePath)

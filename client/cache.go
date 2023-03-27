@@ -43,9 +43,9 @@ func generateCache() error {
 		log.Debugf("create cache dir failed, dir: %s, err: %v\n", cacheDirPath, err)
 		return err
 	}
-	clientFileInfo, err := getClientFileInfo(cacheDirPath)
+	cacheFileInfo, err := getClientFileInfo(cacheDirPath)
 	if err != nil {
-		log.Warnf("getClientFileInfo failed, err: %v\n", err)
+		log.Warnf("get CacheFileInfo failed, err: %v\n", err)
 		return err
 	}
 
@@ -54,7 +54,7 @@ func generateCache() error {
 
 	var cacheFiles = make(map[string]*CacheFile, 2000)
 
-	files := clientFileInfo.Files
+	files := cacheFileInfo.Files
 	for _, file := range files {
 		cacheFile := &CacheFile{
 			RelativePath: file.RelativePath,
@@ -233,7 +233,7 @@ func generateCacheFile(localPath string) error {
 	}
 	nowTD := time.Now().Unix()
 	nowT := time.Now().UnixMilli()
-	cacheFilename := fmt.Sprintf("%s-%v", "aa", nowT)
+	cacheFilename := fmt.Sprintf("%s-%v", "vlcache", nowT)
 	cacheDirPathT := filepath.Join(cacheDirPath, strconv.FormatInt(nowTD, 10))
 	cacheFilePath := filepath.Join(cacheDirPathT, cacheFilename)
 
