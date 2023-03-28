@@ -32,7 +32,7 @@ func isRegenerateCache() bool {
 	return true
 }
 
-func generateCache() error {
+func generateCacheInfo() error {
 	cacheDirPath, err := getCacheDirPath()
 	if err != nil {
 		return err
@@ -171,10 +171,11 @@ func checkCache(fileInfo *FileInfo, cacheInfo *CacheInfo) (bool, string, error) 
 		return false, cachePath, nil
 	}
 
-	cacheFile, ok := cacheInfo.Files[fileInfo.Hash]
-	if !ok {
+	isHitCache, cacheFile := checkHitCache(fileInfo.Hash, cacheInfo)
+	if !isHitCache {
 		return false, cachePath, nil
 	}
+
 	if cacheFile == nil {
 		return false, cachePath, fmt.Errorf("cache data error, cacheFile is nil")
 	}
@@ -211,6 +212,31 @@ func checkCache(fileInfo *FileInfo, cacheInfo *CacheInfo) (bool, string, error) 
 		}
 	}
 	return false, cachePath, nil
+}
+
+func checkHitCache(hashSum string, cacheInfo *CacheInfo) (bool, *CacheFile) {
+	if cacheInfo == nil {
+		return false, nil
+	}
+
+	cacheFile, ok := cacheInfo.Files[hashSum]
+	if ok {
+		return true, cacheFile
+	}
+	return false, nil
+}
+
+func tryGenerateCacheFile(localPath string, hashSum string, cacheInfo *CacheInfo) error {
+	isHit, _ := checkHitCache(hashSum, cacheInfo)
+
+	if isHit {
+		return nil
+	}
+	err := generateCacheFile(localPath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func generateCacheFile(localPath string) error {
