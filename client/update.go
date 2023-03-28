@@ -84,7 +84,7 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 	var cacheInfo *CacheInfo
 	if config.Conf.IsUseCache {
 		if isRegenerateCache() {
-			generateCache()
+			generateCacheInfo()
 		}
 		cacheInfo, err = getCacheInfo()
 		if err != nil {
@@ -244,10 +244,9 @@ func syncFile(serverFileInfo *FileInfo, baseDir string, cacheInfo *CacheInfo) er
 
 		// cache downloaded file
 		if config.Conf.IsUseCache {
-			err = generateCacheFile(localPath)
-			//if err != nil {
-			//	return err
-			//}
+			if !isFinallyUseCache {
+				_ = generateCacheFile(localPath)
+			}
 		}
 
 		// check hash

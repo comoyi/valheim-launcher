@@ -32,7 +32,7 @@ func isRegenerateCache() bool {
 	return true
 }
 
-func generateCache() error {
+func generateCacheInfo() error {
 	cacheDirPath, err := getCacheDirPath()
 	if err != nil {
 		return err
