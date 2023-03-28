@@ -60,8 +60,11 @@ jobs:
       - name: Generate font source
         run: make bundle-font-build
 
-      - name: Go mod download
-        run: go mod download
+#      - name: Go mod download
+#        run: go mod download
+
+      - name: Go mod tidy
+        run: go mod tidy
 
 #      - name: Build
 #        run: make build
