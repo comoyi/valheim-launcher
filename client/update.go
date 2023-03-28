@@ -242,13 +242,6 @@ func syncFile(serverFileInfo *FileInfo, baseDir string, cacheInfo *CacheInfo) er
 			return err
 		}
 
-		// cache downloaded file
-		if config.Conf.IsUseCache {
-			if !isFinallyUseCache {
-				_ = generateCacheFile(localPath)
-			}
-		}
-
 		// check hash
 		hashSum, err := md5util.SumFile(localPath)
 		if err != nil {
@@ -256,9 +249,17 @@ func syncFile(serverFileInfo *FileInfo, baseDir string, cacheInfo *CacheInfo) er
 		}
 		log.Debugf("check downloaded file hash, file: %s, serverHashSum: %s, hashSum: %s\n", serverFileInfo.RelativePath, serverFileInfo.Hash, hashSum)
 
+		// cache downloaded file
+		if config.Conf.IsUseCache {
+			if !isFinallyUseCache {
+				_ = tryGenerateCacheFile(localPath, hashSum, cacheInfo)
+			}
+		}
+
 		if hashSum != serverFileInfo.Hash {
 			return fmt.Errorf("download file hash check failed, expected: %s, got: %s", serverFileInfo.Hash, hashSum)
 		}
+
 	} else if serverFileInfo.Type == TypeSymlink {
 		resp, err := http.Get(getFullDownloadUrlByFile(serverFileInfo.RelativePath))
 		if err != nil {
