@@ -12,14 +12,23 @@ import (
 var Conf Config
 
 type Config struct {
-	LogLevel                    string `toml:"log_level" mapstructure:"log_level"`
-	Protocol                    string `toml:"protocol" mapstructure:"protocol"`
-	Host                        string `toml:"host" mapstructure:"host"`
-	Port                        int    `toml:"port" mapstructure:"port"`
-	Dir                         string `toml:"dir" mapstructure:"dir"`
-	AnnouncementRefreshInterval int64  `toml:"announcement_refresh_interval" mapstructure:"announcement_refresh_interval"`
-	IsUseCache                  bool   `toml:"is_use_cache" mapstructure:"is_use_cache"`
-	CacheDir                    string `toml:"cache_dir" mapstructure:"cache_dir"`
+	LogLevel                    string            `toml:"log_level" mapstructure:"log_level"`
+	Protocol                    string            `toml:"protocol" mapstructure:"protocol"`
+	Host                        string            `toml:"host" mapstructure:"host"`
+	Port                        int               `toml:"port" mapstructure:"port"`
+	Dir                         string            `toml:"dir" mapstructure:"dir"`
+	AnnouncementRefreshInterval int64             `toml:"announcement_refresh_interval" mapstructure:"announcement_refresh_interval"`
+	IsUseCache                  bool              `toml:"is_use_cache" mapstructure:"is_use_cache"`
+	CacheDir                    string            `toml:"cache_dir" mapstructure:"cache_dir"`
+	DownloadServers             []*DownloadServer `toml:"download_servers" mapstructure:"download_servers"`
+}
+
+type DownloadServer struct {
+	Protocol   string `toml:"protocol" mapstructure:"protocol"`
+	Host       string `toml:"host" mapstructure:"host"`
+	Port       int    `toml:"port" mapstructure:"port"`
+	PrefixPath string `toml:"prefix_path" mapstructure:"prefix_path"`
+	Type       int    `toml:"type" mapstructure:"type"`
 }
 
 func initDefaultConfig() {
@@ -61,6 +70,11 @@ func LoadConfig() {
 		return
 	}
 	log.Debugf("config: %+v\n", Conf)
+	if Conf.DownloadServers != nil {
+		for _, downloadServer := range Conf.DownloadServers {
+			log.Debugf("config DownloadServer: %+v\n", downloadServer)
+		}
+	}
 }
 
 var saveMutex = &sync.Mutex{}

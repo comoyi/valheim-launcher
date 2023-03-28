@@ -90,12 +90,22 @@ func initMainWindow() {
 				continue
 			}
 			if exists {
-				isFound = true
-				pathInput.SetText(dir)
-				saveDirConfig(dir)
-				log.Debugf("found dir, %v\n", dir)
-				addMsgWithTime("找到文件夹")
-				break
+				gameFilePath := filepath.Join(dir, "valheim.exe")
+				log.Debugf("check game file, %v\n", gameFilePath)
+				exists, err := fsutil.Exists(gameFilePath)
+				if err != nil {
+					log.Debugf("skip this dir, game file not exist, dir: %v, gameFile: %s, err: %v\n", dir, gameFilePath, err)
+					continue
+				}
+
+				if exists {
+					isFound = true
+					pathInput.SetText(dir)
+					saveDirConfig(dir)
+					log.Debugf("found dir, %v\n", dir)
+					addMsgWithTime("找到文件夹")
+					break
+				}
 			}
 		}
 		if !isFound {

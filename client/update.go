@@ -10,6 +10,7 @@ import (
 	"github.com/comoyi/valheim-launcher/util/fsutil"
 	"io"
 	"io/fs"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -80,6 +81,17 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 		syncChan <- file
 	}
 
+	var cacheInfo *CacheInfo
+	if config.Conf.IsUseCache {
+		if isRegenerateCache() {
+			generateCache()
+		}
+		cacheInfo, err = getCacheInfo()
+		if err != nil {
+			return err
+		}
+	}
+
 syncFile:
 	for {
 		select {
@@ -88,7 +100,7 @@ syncFile:
 		default:
 			select {
 			case f := <-syncChan:
-				err := syncFile(f, baseDir)
+				err := syncFile(f, baseDir, cacheInfo)
 				if err != nil {
 					log.Debugf("sync file failed, fileInfo: %+v, err: %s\n", f, err)
 					return err
@@ -111,7 +123,7 @@ syncFile:
 	return nil
 }
 
-func syncFile(serverFileInfo *FileInfo, baseDir string) error {
+func syncFile(serverFileInfo *FileInfo, baseDir string, cacheInfo *CacheInfo) error {
 	var err error
 	log.Debugf("syncing file info %+v\n", serverFileInfo)
 
@@ -187,7 +199,7 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 		isCacheHit := false
 		cachePath := ""
 		if config.Conf.IsUseCache {
-			isCacheHit, cachePath, _ = checkCache(serverFileInfo)
+			isCacheHit, cachePath, _ = checkCache(serverFileInfo, cacheInfo)
 		}
 
 		isFinallyUseCache := false
@@ -202,9 +214,7 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 			syncTypeInfo = "[FROM_CACHE]"
 		}
 		if !isFinallyUseCache {
-			q := url.Values{}
-			q.Set("file", serverFileInfo.RelativePath)
-			resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+			resp, err := http.Get(getFullDownloadUrlByFile(serverFileInfo.RelativePath))
 			if err != nil {
 				return err
 			}
@@ -232,6 +242,14 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 			return err
 		}
 
+		// cache downloaded file
+		if config.Conf.IsUseCache {
+			err = generateCacheFile(localPath)
+			//if err != nil {
+			//	return err
+			//}
+		}
+
 		// check hash
 		hashSum, err := md5util.SumFile(localPath)
 		if err != nil {
@@ -243,9 +261,7 @@ func syncFile(serverFileInfo *FileInfo, baseDir string) error {
 			return fmt.Errorf("download file hash check failed, expected: %s, got: %s", serverFileInfo.Hash, hashSum)
 		}
 	} else if serverFileInfo.Type == TypeSymlink {
-		q := url.Values{}
-		q.Set("file", serverFileInfo.RelativePath)
-		resp, err := http.Get(fmt.Sprintf("%s%s", getFullUrl("/sync"), "?"+q.Encode()))
+		resp, err := http.Get(getFullDownloadUrlByFile(serverFileInfo.RelativePath))
 		if err != nil {
 			return err
 		}
@@ -312,10 +328,22 @@ func deleteFiles(serverFileInfo *ServerFileInfo, baseDir string) error {
 		log.Warnf("getClientFileInfo failed, err: %v\n", err)
 		return err
 	}
+
+	cacheDirPath, err := getCacheDirPath()
+	if err != nil {
+		return err
+	}
+
 	files := clientFileInfo.Files
 	for _, file := range files {
 		if !in(file.RelativePath, serverFileInfo.Files) {
 			path := filepath.Join(baseDir, file.RelativePath)
+
+			// ignore cache_dir files
+			if strings.HasPrefix(path, cacheDirPath) {
+				continue
+			}
+
 			isAllow, err := isAllowDelete(path, baseDir, file.RelativePath)
 			if err != nil {
 				log.Warnf("check delete file failed, err: %v, file: %s\n", err, file.RelativePath)
@@ -466,6 +494,42 @@ func getFullUrl(path string) string {
 	return u
 }
 
+const (
+	DownloadServerTypeOss = 2
+)
+
+func getFullDownloadUrlByFile(relativePath string) string {
+	downloadServers := config.Conf.DownloadServers
+	count := len(downloadServers)
+	randNum := rand.Intn(count)
+	downloadServer := downloadServers[randNum]
+
+	var u string = ""
+	prefixPath := downloadServer.PrefixPath
+	if downloadServer.Type == DownloadServerTypeOss {
+		relativePath = strings.ReplaceAll(relativePath, "\\\\", "/")
+		relativePath = strings.ReplaceAll(relativePath, "\\", "/")
+		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, fmt.Sprintf("%s/", prefixPath)), relativePath)
+	} else {
+		q := url.Values{}
+		q.Set("file", fmt.Sprintf("%s%s", prefixPath, relativePath))
+		u = fmt.Sprintf("%s%s", getFullDownloadUrl(downloadServer, "/sync"), "?"+q.Encode())
+	}
+	log.Debugf("download from: %s\n", u)
+	return u
+}
+
+func getFullDownloadUrl(downloadServer *config.DownloadServer, path string) string {
+	protocol := downloadServer.Protocol
+	if protocol == "" {
+		protocol = "http"
+	}
+	host := downloadServer.Host
+	port := downloadServer.Port
+	u := fmt.Sprintf("%s://%s:%d%s", protocol, host, port, path)
+	return u
+}
+
 func httpGet(url string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -476,44 +540,6 @@ func httpGet(url string) (string, error) {
 		return "", err
 	}
 	return string(j), nil
-}
-
-func checkCache(fileInfo *FileInfo) (bool, string, error) {
-	cacheDir := config.Conf.CacheDir
-	cachePath := ""
-
-	cacheDirPath, err := filepath.Abs(cacheDir)
-	if err != nil {
-		log.Debugf("get cache dir absolute path failed, cache dir: %s, err: %v\n", cacheDir, err)
-		return false, cachePath, err
-	}
-	cachePath = filepath.Join(cacheDirPath, fileInfo.RelativePath)
-	log.Debugf("cache dir: %s, cache path: %s\n", cacheDir, cachePath)
-	isCacheExist, err := fsutil.LExists(cachePath)
-	if err != nil {
-		log.Debugf("check file is exists failed, cachePath: %s, err: %v\n", cachePath, err)
-		return false, cachePath, err
-	}
-	if isCacheExist {
-		cfi, err := os.Lstat(cachePath)
-		if err != nil {
-			log.Debugf("get file info failed, cachePath: %s, err: %v\n", cachePath, err)
-			return false, cachePath, err
-		}
-		if cfi.Mode().IsRegular() {
-			hashSum, err := md5util.SumFile(cachePath)
-			if err != nil {
-				log.Debugf("get file hash failed, cachePath: %s, err: %v\n", cachePath, err)
-				return false, cachePath, err
-			}
-			log.Debugf("cache path: %s, serverHashSum: %s, cache hashSum: %s\n", cachePath, fileInfo.Hash, hashSum)
-			if hashSum == fileInfo.Hash {
-				log.Debugf("[CACHE_HIT]cache hit , cachePath: %s\n", cachePath)
-				return true, cachePath, nil
-			}
-		}
-	}
-	return false, cachePath, nil
 }
 
 func isBelongDir(path string, baseDir string) (bool, error) {

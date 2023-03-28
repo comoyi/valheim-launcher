@@ -20,6 +20,16 @@ func TimeToDateTime(time time.Time) string {
 	return time.Format("2006-01-02 15:04:05")
 }
 
+// TimestampToDate 10位时间戳转换为DateTime 例：1609527845 -> 2021-01-02
+func TimestampToDate(timestamp int64) string {
+	return TimeToDate(time.Unix(timestamp, 0))
+}
+
+// TimeToDate time.Time转换为Date 例：time.Time -> 2021-01-02
+func TimeToDate(time time.Time) string {
+	return time.Format("2006-01-02")
+}
+
 func FormatDuration(second int64) string {
 	var d int64
 	var h int64
