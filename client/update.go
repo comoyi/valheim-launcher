@@ -81,7 +81,7 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 		syncChan <- file
 	}
 
-	var cacheInfo *CacheInfo
+	var cacheInfo *CacheInfo = NewCacheInfo()
 	if config.Conf.IsUseCache {
 		if isRegenerateCacheDb() {
 			generateCacheDb()

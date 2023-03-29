@@ -18,7 +18,19 @@ import (
 type CacheInfo struct {
 	GenerateTimestamp int64                 `json:"generate_timestamp"`
 	GenerateTime      string                `json:"generate_time"`
+	UpdateTimestamp   int64                 `json:"update_timestamp"`
+	UpdateTime        string                `json:"update_time"`
 	Files             map[string]*CacheFile `json:"files"`
+}
+
+func NewCacheInfo() *CacheInfo {
+	return &CacheInfo{
+		GenerateTimestamp: 0,
+		GenerateTime:      "",
+		UpdateTimestamp:   0,
+		UpdateTime:        "",
+		Files:             make(map[string]*CacheFile),
+	}
 }
 
 type CacheFile struct {
@@ -123,10 +135,16 @@ func addCacheDbData(hashSum string, cacheFile *CacheFile) (*CacheInfo, error) {
 		return nil, err
 	}
 
-	cacheInfo.Files[hashSum] = cacheFile
-	err = writeCacheDb(cacheInfo)
-	if err != nil {
-		return nil, err
+	if cacheFile != nil {
+		nowTimestamp := time.Now().Unix()
+		nowDateTime := timeutil.TimestampToDateTime(nowTimestamp)
+		cacheInfo.UpdateTimestamp = nowTimestamp
+		cacheInfo.UpdateTime = nowDateTime
+		cacheInfo.Files[hashSum] = cacheFile
+		err = writeCacheDb(cacheInfo)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return cacheInfo, nil
 }
@@ -154,22 +172,27 @@ func getCacheInfoFilePath() (string, error) {
 }
 
 func getCacheInfo() (*CacheInfo, error) {
-
 	cacheInfoFilePath, err := getCacheInfoFilePath()
 	if err != nil {
 		log.Debugf("get CacheInfoFilePath failed, err: %v\n", err)
 		return nil, err
 	}
-	fileContentByte, err := os.ReadFile(cacheInfoFilePath)
+
+	isExist, err := fsutil.LExists(cacheInfoFilePath)
 	if err != nil {
 		return nil, err
 	}
-
-	var cacheInfo *CacheInfo
-	err = json.Unmarshal(fileContentByte, &cacheInfo)
-	if err != nil {
-		log.Debugf("decode cacheInfoFile failed, err: %v\n", err)
-		return nil, err
+	var cacheInfo *CacheInfo = NewCacheInfo()
+	if isExist {
+		fileContentByte, err := os.ReadFile(cacheInfoFilePath)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(fileContentByte, &cacheInfo)
+		if err != nil {
+			log.Debugf("decode cacheInfoFile failed, err: %v\n", err)
+			return nil, err
+		}
 	}
 
 	log.Debugf("cacheInfoFile: %+v\n", cacheInfo)
