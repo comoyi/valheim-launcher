@@ -18,7 +18,19 @@ import (
 type CacheInfo struct {
 	GenerateTimestamp int64                 `json:"generate_timestamp"`
 	GenerateTime      string                `json:"generate_time"`
+	UpdateTimestamp   int64                 `json:"update_timestamp"`
+	UpdateTime        string                `json:"update_time"`
 	Files             map[string]*CacheFile `json:"files"`
+}
+
+func NewCacheInfo() *CacheInfo {
+	return &CacheInfo{
+		GenerateTimestamp: 0,
+		GenerateTime:      "",
+		UpdateTimestamp:   0,
+		UpdateTime:        "",
+		Files:             make(map[string]*CacheFile),
+	}
 }
 
 type CacheFile struct {
@@ -28,11 +40,11 @@ type CacheFile struct {
 }
 
 // TODO
-func isRegenerateCache() bool {
-	return true
+func isRegenerateCacheDb() bool {
+	return false
 }
 
-func generateCacheInfo() error {
+func generateCacheDb() error {
 	cacheDirPath, err := getCacheDirPath()
 	if err != nil {
 		return err
@@ -73,6 +85,14 @@ func generateCacheInfo() error {
 		Files:             cacheFiles,
 	}
 
+	return writeCacheDb(cacheInfo)
+}
+
+func writeCacheDb(cacheInfo *CacheInfo) error {
+	if cacheInfo == nil {
+		log.Debugf("writeCacheDb failed, err: cacheInfo is nil\n")
+		return fmt.Errorf("cacheInfo is nil")
+	}
 	j, err := json.Marshal(cacheInfo)
 	if err != nil {
 		log.Debugf("json encode failed, err: %v, cacheInfo: %+v\n", err, cacheInfo)
@@ -106,8 +126,27 @@ func generateCacheInfo() error {
 		log.Debugf("write cacheInfoData failed[2], err: %v\n", err)
 		return err
 	}
-
 	return nil
+}
+
+func addCacheDbData(hashSum string, cacheFile *CacheFile) (*CacheInfo, error) {
+	cacheInfo, err := getCacheInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	if cacheFile != nil {
+		nowTimestamp := time.Now().Unix()
+		nowDateTime := timeutil.TimestampToDateTime(nowTimestamp)
+		cacheInfo.UpdateTimestamp = nowTimestamp
+		cacheInfo.UpdateTime = nowDateTime
+		cacheInfo.Files[hashSum] = cacheFile
+		err = writeCacheDb(cacheInfo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return cacheInfo, nil
 }
 
 func getCacheInfoFilePath() (string, error) {
@@ -133,22 +172,27 @@ func getCacheInfoFilePath() (string, error) {
 }
 
 func getCacheInfo() (*CacheInfo, error) {
-
 	cacheInfoFilePath, err := getCacheInfoFilePath()
 	if err != nil {
 		log.Debugf("get CacheInfoFilePath failed, err: %v\n", err)
 		return nil, err
 	}
-	fileContentByte, err := os.ReadFile(cacheInfoFilePath)
+
+	isExist, err := fsutil.LExists(cacheInfoFilePath)
 	if err != nil {
 		return nil, err
 	}
-
-	var cacheInfo *CacheInfo
-	err = json.Unmarshal(fileContentByte, &cacheInfo)
-	if err != nil {
-		log.Debugf("decode cacheInfoFile failed, err: %v\n", err)
-		return nil, err
+	var cacheInfo *CacheInfo = NewCacheInfo()
+	if isExist {
+		fileContentByte, err := os.ReadFile(cacheInfoFilePath)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(fileContentByte, &cacheInfo)
+		if err != nil {
+			log.Debugf("decode cacheInfoFile failed, err: %v\n", err)
+			return nil, err
+		}
 	}
 
 	log.Debugf("cacheInfoFile: %+v\n", cacheInfo)
@@ -226,30 +270,35 @@ func checkHitCache(hashSum string, cacheInfo *CacheInfo) (bool, *CacheFile) {
 	return false, nil
 }
 
-func tryGenerateCacheFile(localPath string, hashSum string, cacheInfo *CacheInfo) error {
+func tryGenerateCacheFile(localPath string, hashSum string, fileType FileType, cacheInfo *CacheInfo) (*CacheInfo, error) {
 	isHit, _ := checkHitCache(hashSum, cacheInfo)
 
 	if isHit {
-		return nil
+		return nil, nil
 	}
-	err := generateCacheFile(localPath)
+	cacheFile, err := generateCacheFile(localPath, hashSum, fileType)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	cacheInfoNew, err := addCacheDbData(hashSum, cacheFile)
+	if err != nil {
+		return nil, err
+	}
+	return cacheInfoNew, nil
 }
 
-func generateCacheFile(localPath string) error {
+func generateCacheFile(localPath string, hashSum string, fileType FileType) (*CacheFile, error) {
 	f, err := os.Open(localPath)
 	if err != nil {
 		log.Debugf("in generateCacheFile, open localPath file failed, localPath: %s, err: %v\n", localPath, err)
-		return err
+		return nil, err
 	}
 	defer f.Close()
 
 	cacheDirPath, err := getCacheDirPath()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	now := time.Now()
 	nowD := timeutil.TimestampToDate(now.Unix())
@@ -261,22 +310,33 @@ func generateCacheFile(localPath string) error {
 	err = os.MkdirAll(cacheDirPathT, os.ModePerm)
 	if err != nil {
 		log.Debugf("create cache dir failed, dir: %s, err: %v\n", cacheDirPath, err)
-		return err
+		return nil, err
 	}
 
 	file, err := os.Create(cacheFilePath)
 	if err != nil {
 		log.Debugf("create cache file failed, dir: %s, err: %v\n", cacheDirPathT, err)
-		return err
+		return nil, err
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, f)
 	if err != nil {
 		log.Debugf("write cache file failed, cacheFilePath: %s, err: %v\n", cacheFilePath, err)
-		return err
+		return nil, err
 	}
-	return nil
+
+	relativePath, err := filepath.Rel(cacheDirPath, cacheFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheFile := &CacheFile{
+		RelativePath: relativePath,
+		Type:         fileType,
+		Hash:         hashSum,
+	}
+	return cacheFile, nil
 }
 
 func getCacheDirPath() (string, error) {
