@@ -39,9 +39,20 @@ type CacheFile struct {
 	Hash         string   `json:"hash"`
 }
 
-// TODO
 func isRegenerateCacheDb() bool {
-	return false
+	cacheInfoFilePath, err := getCacheInfoFilePath()
+	if err != nil {
+		return true
+	}
+	isExist, err := fsutil.LExists(cacheInfoFilePath)
+	if err != nil {
+		return true
+	}
+	if isExist {
+		return false
+	}
+
+	return true
 }
 
 func generateCacheDb() error {
