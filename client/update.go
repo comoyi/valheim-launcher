@@ -84,7 +84,9 @@ func update(ctx context.Context, baseDir string, progressChan chan<- struct{}) e
 	var cacheInfo *CacheInfo = NewCacheInfo()
 	if config.Conf.IsUseCache {
 		if isRegenerateCacheDb() {
+			addMsgWithTime("开始刷新缓存数据库")
 			generateCacheDb()
+			addMsgWithTime("刷新缓存数据库结束")
 		}
 		cacheInfo, err = getCacheInfo()
 		if err != nil {
