@@ -242,7 +242,7 @@ func initMainWindow() {
 	c3 := container.NewAdaptiveGrid(1)
 	c3.Add(pathInput)
 	c.Add(c3)
-	startBtn := initStartBtn()
+	startBtn := initStartBtn(pathInput)
 	c4 := container.NewAdaptiveGrid(2)
 	c4.Add(updateBtn)
 	c4.Add(startBtn)
@@ -329,15 +329,34 @@ func initManualInputBtn(c *fyne.Container, pathInput *widget.Label) {
 	c.Add(inputBtn)
 }
 
-func initStartBtn() *widget.Button {
+func initStartBtn(pathInput *widget.Label) *widget.Button {
 	var btn *widget.Button
 	btn = widget.NewButton("启动英灵神殿", func() {
 		if runtime.GOOS != "windows" {
 			dialogutil.ShowInformation("", "当前只支持Windows", w)
 			return
 		}
-		cmd := exec.Command("cmd", "/C", "start", "/B", "steam://rungameid/892970")
-		err := cmd.Start()
+		baseDir := pathInput.Text
+		if baseDir == "" {
+			dialogutil.ShowInformation("提示", "请选择文件夹", w)
+			return
+		}
+		baseDir = filepath.Clean(baseDir)
+
+		var err error
+
+		addMsgWithTime("> 启动Steam，建议提前启动Steam，防止Steam登陆过慢导致游戏启动失败！")
+		cmdSteam := exec.Command("cmd", "/C", "start", "/B", "steam://")
+		err = cmdSteam.Start()
+		if err != nil {
+			log.Infof("Start failed, err: %v\n", err)
+			addMsgWithTime("启动Steam失败，请通过其他方式启动")
+			return
+		}
+		addMsgWithTime("> 启动英灵神殿")
+		programPath := fmt.Sprintf("%s\\%s", baseDir, "valheim.exe")
+		cmdProgram := exec.Command("cmd", "/C", "start", "/B", programPath)
+		err = cmdProgram.Start()
 		if err != nil {
 			log.Infof("Start failed, err: %v\n", err)
 			addMsgWithTime("启动失败，请通过其他方式启动")
