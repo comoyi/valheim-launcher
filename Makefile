@@ -8,7 +8,7 @@ build-run:
 
 .PHONY: build
 build:
-	go build \
+	go build -trimpath \
 	-ldflags \
 	"-X 'github.com/comoyi/valheim-launcher/client.versionText=$(X_APP_VERSION)'" \
 	-o target/linux/valheim-launcher main.go
